@@ -1714,6 +1714,47 @@ const SText = fabric.util.createClass(fabric.Object, {
   _deleteLineStyle: function (lineIndex) {
     delete this.styles[lineIndex];
   },
+
+  // 重写的
+  /**
+   * Scales an object (equally by x and y)
+   * @param {Number} value Scale factor
+   * @return {fabric.Object} thisArg
+   * @chainable
+   */
+  scale: function (value) {
+    // this._set('scaleX', value);
+    // this._set('scaleY', value);
+    console.log('this.setCoords()', this.setCoords());
+    return this.setCoords();
+  },
+
+  /**
+   * Scales an object to a given width, with respect to bounding box (scaling by x/y equally)
+   * @param {Number} value New width value
+   * @param {Boolean} absolute ignore viewport
+   * @return {fabric.Object} thisArg
+   * @chainable
+   */
+  scaleToWidth: function (value, absolute) {
+    // adjust to bounding rect factor so that rotated shapes would fit as well
+    var boundingRectFactor = this.getBoundingRect(absolute).width / this.getScaledWidth();
+    return this.scale(value / this.width / boundingRectFactor);
+  },
+
+  /**
+   * Scales an object to a given height, with respect to bounding box (scaling by x/y equally)
+   * @param {Number} value New height value
+   * @param {Boolean} absolute ignore viewport
+   * @return {fabric.Object} thisArg
+   * @chainable
+   */
+  scaleToHeight: function (value, absolute) {
+    // adjust to bounding rect factor so that rotated shapes would fit as well
+    var boundingRectFactor =
+      this.getBoundingRect(absolute).height / this.getScaledHeight();
+    return this.scale(value / this.height / boundingRectFactor);
+  },
 });
 
 /* _FROM_SVG_START_ */

@@ -1,8 +1,10 @@
 import { fabric } from 'fabric';
 
+import SText from "./SText";
+
 var clone = fabric.util.object.clone;
 
-const EText = fabric.util.createClass(fabric.Text, {
+const EText = fabric.util.createClass(SText, {
   type: 'EText',
 
   /**

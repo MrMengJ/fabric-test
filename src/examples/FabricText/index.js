@@ -1,8 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { fabric } from 'fabric';
 import styled from 'styled-components';
+
 import EText from '../../objects/EText';
 import SText from '../../objects/SText';
+import EGroup from '../../objects/EGroup';
+import ECanvas from '../../objects/ECanvas';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;
@@ -25,32 +28,37 @@ function FabricText() {
         width: 1000,
         height: 700,
       };
-      canvas = new fabric.Canvas(canvasEl.current, canvasOptions);
+      canvas = new ECanvas(canvasEl.current, canvasOptions);
 
-      // const rect = new fabric.Rect({
-      //   width: 200,
-      //   height: 200,
-      //   fill: '#34eeeb',
-      // });
+      const rect = new fabric.Rect({
+        width: 200,
+        height: 200,
+        fill: '#34eeeb',
+      });
       // canvas.add(rect);
 
       const textBox = new SText('Test text', {
         fontSize: 40,
         backgroundColor: 'red',
         fill: 'green',
-        top: 300,
-        left: 400,
-        lockMovementX: true,
-        lockMovementY: true,
+        // top: 300,
+        // left: 400,
+        // lockMovementX: true,
+        // lockMovementY: true,
+        // lockScalingX: true,
+        // lockScalingY: true,
+        // hasControls: false,
+        // hasBorders: false,
+        // lockUniScaling:true
       });
-      canvas.add(textBox);
+      // canvas.add(textBox);
 
-      // const group = new fabric.Group([rect, textBox], {
-      //   top: 150,
-      //   left: 200,
-      // });
-      //
-      // canvas.add(group);
+      const group = new EGroup([rect, textBox], {
+        top: 150,
+        left: 200,
+      });
+
+      canvas.add(group);
 
       canvas.renderAll();
     }
