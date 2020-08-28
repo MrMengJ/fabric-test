@@ -1,5 +1,6 @@
 import { fabric } from 'fabric';
 
+// canvas.class.js
 var getPointer = fabric.util.getPointer,
   degreesToRadians = fabric.util.degreesToRadians,
   abs = Math.abs,
@@ -24,8 +25,8 @@ var degreesToRadians = fabric.util.degreesToRadians,
   radiansToDegrees = fabric.util.radiansToDegrees;
 
 // canvas_grouping.mixin.js
-var min = fabric.util.array.min,
-  max = fabric.util.array.max;
+var min = Math.min,
+  max = Math.max;
 
 const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
   /**
