@@ -43,9 +43,6 @@ const EGroup = fabric.util.createClass(fabric.Object, fabric.Collection, {
    * @return {Object} thisArg
    */
   initialize: function (objects, options, isAlreadyGrouped) {
-    console.log('objects', objects);
-    console.log('options', options);
-    console.log('isAlreadyGrouped', isAlreadyGrouped);
     options = options || {};
     this._objects = [];
     // if objects enclosed in a group have been grouped already,
