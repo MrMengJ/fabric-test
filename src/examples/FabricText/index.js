@@ -6,7 +6,7 @@ import Demo3 from './demo3';
 import Demo4 from "./demo4";
 
 function FabricText() {
-  return <Demo4 />;
+  return <Demo1 />;
 }
 
 export default FabricText;

@@ -30,8 +30,8 @@ function Demo1() {
 
   let groupItems = [];
   const ungroup = function (group) {
-    groupItems = group._objects;
-    group._restoreObjectsState();
+    groupItems = group.getObjects();
+    group.destroy();
     canvas.remove(group);
     for (var i = 0; i < groupItems.length; i++) {
       canvas.add(groupItems[i]);
