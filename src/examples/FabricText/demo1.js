@@ -4,6 +4,7 @@ import styled from 'styled-components';
 
 import ECanvas from '../../objects/ECanvas';
 import EGroup from '../../objects/EGroup';
+import EText from '../../objects/EText';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;
@@ -55,20 +56,24 @@ function Demo1() {
         width: 200,
         height: 200,
         fill: '#34eeeb',
+        selectable: false,
       });
 
-      const textBox = new fabric.Textbox('Test text', {
-        width: 200,
-        height: 200,
-        backgroundColor: 'red',
-        fontSize: 40,
-        lockMovementX: true,
-        lockMovementY: true,
-        lockScalingX: true,
-        lockScalingY: true,
-        hasControls: false,
-        hasBorders: false,
-      });
+      const textBox = new EText(
+        'dsafe 圣达菲的三分框架打飞机饿了达力芬额苏打绿飞机了dsafe了',
+        {
+          width: 200,
+          splitByGrapheme: true,
+          backgroundColor: 'red',
+          fontSize: 40,
+          lockMovementX: true,
+          lockMovementY: true,
+          lockScalingX: true,
+          lockScalingY: true,
+          hasControls: false,
+          hasBorders: false,
+        }
+      );
 
       textBox.on('editing:exited', function () {
         groupItems.forEach(function (obj) {
