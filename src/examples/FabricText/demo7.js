@@ -4,6 +4,7 @@ import styled from 'styled-components';
 import ECanvas from '../../objects/ECanvas';
 import LabeledRect from '../../objects/LabeledRect';
 import EditableTextShape from '../../objects/EditableTextShape';
+import { filter, forEach, get } from 'lodash';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;
@@ -25,23 +26,32 @@ function Demo7() {
       };
 
       canvas = new ECanvas(canvasEl.current, canvasOptions);
+      window.ecanvas = canvas;
 
       const editableTextShape = new EditableTextShape({
-        left: 200,
+        left: 100,
         top: 200,
         width: 200,
         height: 200,
         fill: '#34eeeb',
-        rx: 20,
-        ry: 20,
-        text: 'test',
+        // rx: 20,
+        // ry: 20,
+        text: '中文test',
+        textAlign: 'center',
+        fontFamily: 'Ubuntu',
+        underline: true,
+        objectCaching: false,
         textStyle: {
           fill: 'red',
-          underline:true
         },
       });
 
       console.log('editableTextShape', editableTextShape);
+
+      canvas.on('object:scaling', (obj) => {
+        // console.log('obj', obj);
+        // console.log('target', obj.target);
+      });
 
       canvas.add(editableTextShape);
 
