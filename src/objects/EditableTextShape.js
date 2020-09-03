@@ -69,7 +69,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @type Number
    * @default
    */
-  fontSize: 40,
+  fontSize: 14,
 
   /**
    * Font weight (e.g. bold, normal, 400, 600, 800)
@@ -307,22 +307,19 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   initialize: function (options = {}) {
     // rect
     this._initRxRy();
-    this.set('text', get(options, 'text', ''));
 
     // text
     this.textStyle = options
       ? { ...defaultTextStyle, ...options.textStyle }
       : this.textStyle;
     this.textStyles = options ? options.textStyles || {} : {};
-    this.text = options.text;
+    this.set('text', get(options, 'text', ''));
+    this.__skipDimension = true;
+    this.callSuper('initialize', options);
     this.__skipDimension = false;
     this.initDimensions();
-    // TODO need setCoords ?
-    // this.setCoords();
     this.setupState({ propertySet: '_dimensionAffectingProps' });
     this.initBehavior();
-
-    this.callSuper('initialize', options);
   },
 
   /**
@@ -4142,7 +4139,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @type Boolean
    * @since 2.6.0
    */
-  splitByGrapheme: false,
+  splitByGrapheme: true,
 
   /**
    * Generate an object that translates the style object so that it is

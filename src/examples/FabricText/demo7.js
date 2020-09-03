@@ -34,13 +34,13 @@ function Demo7() {
         width: 200,
         height: 200,
         fill: '#34eeeb',
-        rx: 20,
-        ry: 20,
-        text: '中文test',
+        // rx: 20,
+        // ry: 20,
+        text:
+          '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test\n中文test中文test中文test中文test中文test中文test',
         textAlign: 'center',
         fontFamily: 'Ubuntu',
         underline: true,
-        splitByGrapheme: true,
         objectCaching: false,
         textStyle: {
           fill: 'red',
