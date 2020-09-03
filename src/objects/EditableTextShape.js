@@ -42,6 +42,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     'charSpacing',
     'textAlign',
     'textStyles',
+    'width',
   ],
 
   /**
@@ -305,7 +306,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   initialize: function (options = {}) {
     // rect
-    this.callSuper('initialize', options);
     this._initRxRy();
     this.set('text', get(options, 'text', ''));
 
@@ -320,8 +320,9 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     // TODO need setCoords ?
     // this.setCoords();
     this.setupState({ propertySet: '_dimensionAffectingProps' });
-
     this.initBehavior();
+
+    this.callSuper('initialize', options);
   },
 
   /**
@@ -446,6 +447,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       'charSpacing',
       'rx',
       'ry',
+      'minWidth',
+      'splitByGrapheme',
     ].concat(propertiesToInclude);
     var obj = this.callSuper('toObject', additionalProperties);
     obj.textStyle = clone(this.textStyle, true);
@@ -464,29 +467,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     this._unwrappedTextLines = newLines._unwrappedLines;
     this._text = newLines.graphemeText;
     return newLines;
-  },
-
-  /**
-   * Returns the text as an array of lines.
-   * @param {String} text text to split
-   * @returns {Array} Lines in the text
-   */
-  _splitTextIntoLines: function (text) {
-    var lines = text.split(this._reNewline),
-      newLines = new Array(lines.length),
-      newLine = ['\n'],
-      newText = [];
-    for (var i = 0; i < lines.length; i++) {
-      newLines[i] = fabric.util.string.graphemeSplit(lines[i]);
-      newText = newText.concat(newLines[i], newLine);
-    }
-    newText.pop();
-    return {
-      _unwrappedLines: newLines,
-      lines: lines,
-      graphemeText: newText,
-      graphemeLines: newLines,
-    };
   },
 
   /**
@@ -630,20 +610,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * get the reference, not a clone, of the style object for a given character
-   * @param {Number} lineIndex
-   * @param {Number} charIndex
-   * @return {Object} style object
-   */
-  _getStyleDeclaration: function (lineIndex, charIndex) {
-    var lineStyle = this.textStyles && this.textStyles[lineIndex];
-    if (!lineStyle) {
-      return null;
-    }
-    return lineStyle[charIndex];
-  },
-
-  /**
    * measure and return the width of a single character.
    * possibly overridden to accommodate different measure logic or
    * to hook some external lib for character measurement
@@ -756,18 +722,21 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * Does not return dimensions.
    */
   initDimensions: function () {
-    // IText
-    this.isEditing && this.initDelayedCursor();
-    this.clearContextTop();
-
-    // Text
     if (this.__skipDimension) {
       return;
     }
+    this.isEditing && this.initDelayedCursor();
+    this.clearContextTop();
     this._splitText();
     this._clearCache();
-    // TODO handle width
-    // this.width = this.calcTextWidth() || this.cursorWidth || this.MIN_TEXT_WIDTH;
+    // clear dynamicMinWidth as it will be different after we re-wrap line
+    this.dynamicMinWidth = 0;
+    // wrap lines
+    this._styleMap = this._generateStyleMap(this._splitText());
+    // if after wrapping, the width is smaller than dynamicMinWidth, change the width and re-wrap
+    if (this.dynamicMinWidth > this.width) {
+      this._set('width', this.dynamicMinWidth);
+    }
     if (this.textAlign.indexOf('justify') !== -1) {
       // once text is measured we need to make space fatter to make justified text.
       this.enlargeSpaces();
@@ -1074,18 +1043,33 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     if (!this.textStyles) {
       return true;
     }
-    if (typeof lineIndex !== 'undefined' && !this.textStyles[lineIndex]) {
-      return true;
+    var offset = 0,
+      nextLineIndex = lineIndex + 1,
+      nextOffset,
+      obj,
+      shouldLimit = false,
+      map = this._styleMap[lineIndex],
+      mapNextLine = this._styleMap[lineIndex + 1];
+    if (map) {
+      lineIndex = map.line;
+      offset = map.offset;
     }
-    var obj =
+    if (mapNextLine) {
+      nextLineIndex = mapNextLine.line;
+      shouldLimit = nextLineIndex === lineIndex;
+      nextOffset = mapNextLine.offset;
+    }
+    obj =
       typeof lineIndex === 'undefined'
         ? this.textStyles
         : { line: this.textStyles[lineIndex] };
     for (var p1 in obj) {
       for (var p2 in obj[p1]) {
-        // eslint-disable-next-line no-unused-vars
-        for (var p3 in obj[p1][p2]) {
-          return false;
+        if (p2 >= offset && (!shouldLimit || p2 < nextOffset)) {
+          // eslint-disable-next-line no-unused-vars
+          for (var p3 in obj[p1][p2]) {
+            return false;
+          }
         }
       }
     }
@@ -1151,6 +1135,15 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @return {Boolean}
    */
   styleHas: function (property, lineIndex) {
+    // Textbox duplicate
+    if (this._styleMap && !this.isWrapping) {
+      var map = this._styleMap[lineIndex];
+      if (map) {
+        lineIndex = map.line;
+      }
+    }
+
+    // Text duplicate
     if (!this.textStyles || !property || property === '') {
       return false;
     }
@@ -1331,25 +1324,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * Detect if the text line is ended with an hard break
-   * text and itext do not have wrapping, return false
-   * @return {Boolean}
-   */
-  isEndOfWrapping: function (lineIndex) {
-    return lineIndex === this._textLines.length - 1;
-  },
-
-  /**
-   * Detect if a line has a linebreak and so we need to account for it when moving
-   * and counting style.
-   * It return always for text and Itext.
-   * @return Number
-   */
-  missingNewlineOffset: function () {
-    return 1;
-  },
-
-  /**
    * Returns string representation of an instance
    * @return {String} String representation of text object
    */
@@ -1486,12 +1460,12 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   _setScript: function (start, end, schema) {
     var loc = this.get2DCursorLocation(start, true),
-        fontSize = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'fontSize'),
-        dy = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'deltaY'),
-        style = {
-          fontSize: fontSize * schema.size,
-          deltaY: dy + fontSize * schema.baseline,
-        };
+      fontSize = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'fontSize'),
+      dy = this.getValueOfPropertyAt(loc.lineIndex, loc.charIndex, 'deltaY'),
+      style = {
+        fontSize: fontSize * schema.size,
+        deltaY: dy + fontSize * schema.baseline,
+      };
     this.setSelectionStyles(style, start, end);
     return this;
   },
@@ -1503,14 +1477,14 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   _hasStyleChanged: function (prevStyle, thisStyle) {
     return (
-        prevStyle.fill !== thisStyle.fill ||
-        prevStyle.stroke !== thisStyle.stroke ||
-        prevStyle.strokeWidth !== thisStyle.strokeWidth ||
-        prevStyle.fontSize !== thisStyle.fontSize ||
-        prevStyle.fontFamily !== thisStyle.fontFamily ||
-        prevStyle.fontWeight !== thisStyle.fontWeight ||
-        prevStyle.fontStyle !== thisStyle.fontStyle ||
-        prevStyle.deltaY !== thisStyle.deltaY
+      prevStyle.fill !== thisStyle.fill ||
+      prevStyle.stroke !== thisStyle.stroke ||
+      prevStyle.strokeWidth !== thisStyle.strokeWidth ||
+      prevStyle.fontSize !== thisStyle.fontSize ||
+      prevStyle.fontFamily !== thisStyle.fontFamily ||
+      prevStyle.fontWeight !== thisStyle.fontWeight ||
+      prevStyle.fontStyle !== thisStyle.fontStyle ||
+      prevStyle.deltaY !== thisStyle.deltaY
     );
   },
 
@@ -1521,10 +1495,10 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   _hasStyleChangedForSvg: function (prevStyle, thisStyle) {
     return (
-        this._hasStyleChanged(prevStyle, thisStyle) ||
-        prevStyle.overline !== thisStyle.overline ||
-        prevStyle.underline !== thisStyle.underline ||
-        prevStyle.linethrough !== thisStyle.linethrough
+      this._hasStyleChanged(prevStyle, thisStyle) ||
+      prevStyle.overline !== thisStyle.overline ||
+      prevStyle.underline !== thisStyle.underline ||
+      prevStyle.linethrough !== thisStyle.linethrough
     );
   },
 
@@ -1571,23 +1545,23 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param {string} property The property to compare between characters and text.
    */
   cleanStyle: function (property) {
-    if (!this.styles || !property || property === '') {
+    if (!this.textStyles || !property || property === '') {
       return false;
     }
-    var obj = this.styles,
-        stylesCount = 0,
-        letterCount,
-        stylePropertyValue,
-        allStyleObjectPropertiesMatch = true,
-        graphemeCount = 0,
-        styleObject;
+    var obj = this.textStyles,
+      stylesCount = 0,
+      letterCount,
+      stylePropertyValue,
+      allStyleObjectPropertiesMatch = true,
+      graphemeCount = 0,
+      styleObject;
     // eslint-disable-next-line
     for (var p1 in obj) {
       letterCount = 0;
       // eslint-disable-next-line
       for (var p2 in obj[p1]) {
         var styleObject = obj[p1][p2],
-            stylePropertyHasBeenSet = styleObject.hasOwnProperty(property);
+          stylePropertyHasBeenSet = styleObject.hasOwnProperty(property);
 
         stylesCount++;
 
@@ -1635,13 +1609,13 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param {String} props The property to remove from character styles.
    */
   removeStyle: function (property) {
-    if (!this.styles || !property || property === '') {
+    if (!this.textStyles || !property || property === '') {
       return;
     }
-    var obj = this.styles,
-        line,
-        lineNum,
-        charNum;
+    var obj = this.textStyles,
+      line,
+      lineNum,
+      charNum;
     for (lineNum in obj) {
       line = obj[lineNum];
       for (charNum in line) {
@@ -1671,8 +1645,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     }
 
     fabric.util.object.extend(
-        this._getStyleDeclaration(loc.lineIndex, loc.charIndex),
-        styles
+      this._getStyleDeclaration(loc.lineIndex, loc.charIndex),
+      styles
     );
   },
 
@@ -1686,7 +1660,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       selectionStart = this.selectionStart;
     }
     var lines = skipWrapping ? this._unwrappedTextLines : this._textLines,
-        len = lines.length;
+      len = lines.length;
     for (var i = 0; i < len; i++) {
       if (selectionStart <= lines[i].length) {
         return {
@@ -1699,7 +1673,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     return {
       lineIndex: i - 1,
       charIndex:
-          lines[i - 1].length < selectionStart ? lines[i - 1].length : selectionStart,
+        lines[i - 1].length < selectionStart ? lines[i - 1].length : selectionStart,
     };
   },
 
@@ -1734,9 +1708,9 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   getStyleAtPosition: function (position, complete) {
     var loc = this.get2DCursorLocation(position),
-        style = complete
-            ? this.getCompleteStyleDeclaration(loc.lineIndex, loc.charIndex)
-            : this._getStyleDeclaration(loc.lineIndex, loc.charIndex);
+      style = complete
+        ? this.getCompleteStyleDeclaration(loc.lineIndex, loc.charIndex)
+        : this._getStyleDeclaration(loc.lineIndex, loc.charIndex);
     return style || {};
   },
 
@@ -1765,48 +1739,10 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
 
   /**
    * @param {Number} lineIndex
-   * @param {Number} charIndex
-   * @param {Object} style
-   * @private
-   */
-  _setStyleDeclaration: function (lineIndex, charIndex, style) {
-    this.styles[lineIndex][charIndex] = style;
-  },
-
-  /**
-   *
-   * @param {Number} lineIndex
-   * @param {Number} charIndex
-   * @private
-   */
-  _deleteStyleDeclaration: function (lineIndex, charIndex) {
-    delete this.styles[lineIndex][charIndex];
-  },
-
-  /**
-   * @param {Number} lineIndex
-   * @return {Boolean} if the line exists or not
-   * @private
-   */
-  _getLineStyle: function (lineIndex) {
-    return !!this.styles[lineIndex];
-  },
-
-  /**
-   * Set the line style to an empty object so that is initialized
-   * @param {Number} lineIndex
-   * @private
-   */
-  _setLineStyle: function (lineIndex) {
-    this.styles[lineIndex] = {};
-  },
-
-  /**
-   * @param {Number} lineIndex
    * @private
    */
   _deleteLineStyle: function (lineIndex) {
-    delete this.styles[lineIndex];
+    delete this.textStyles[lineIndex];
   },
 
   // IText
@@ -2855,17 +2791,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * @private
-   */
-  _removeExtraneousStyles: function () {
-    for (var prop in this.styles) {
-      if (!this._textLines[prop]) {
-        delete this.styles[prop];
-      }
-    }
-  },
-
-  /**
    * remove and reflow a style block from start to end.
    * @param {Number} start linear start position for removal (included in removal)
    * @param {Number} end linear end position for removal ( excluded from removal )
@@ -2881,38 +2806,38 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       styleObj;
     if (lineStart !== lineEnd) {
       // step1 remove the trailing of lineStart
-      if (this.styles[lineStart]) {
+      if (this.textStyles[lineStart]) {
         for (i = charStart; i < this._unwrappedTextLines[lineStart].length; i++) {
-          delete this.styles[lineStart][i];
+          delete this.textStyles[lineStart][i];
         }
       }
       // step2 move the trailing of lineEnd to lineStart if needed
-      if (this.styles[lineEnd]) {
+      if (this.textStyles[lineEnd]) {
         for (i = charEnd; i < this._unwrappedTextLines[lineEnd].length; i++) {
-          styleObj = this.styles[lineEnd][i];
+          styleObj = this.textStyles[lineEnd][i];
           if (styleObj) {
-            this.styles[lineStart] || (this.styles[lineStart] = {});
-            this.styles[lineStart][charStart + i - charEnd] = styleObj;
+            this.textStyles[lineStart] || (this.textStyles[lineStart] = {});
+            this.textStyles[lineStart][charStart + i - charEnd] = styleObj;
           }
         }
       }
       // step3 detects lines will be completely removed.
       for (i = lineStart + 1; i <= lineEnd; i++) {
-        delete this.styles[i];
+        delete this.textStyles[i];
       }
       // step4 shift remaining lines.
       this.shiftLineStyles(lineEnd, lineStart - lineEnd);
     } else {
       // remove and shift left on the same line
-      if (this.styles[lineStart]) {
-        styleObj = this.styles[lineStart];
+      if (this.textStyles[lineStart]) {
+        styleObj = this.textStyles[lineStart];
         var diff = charEnd - charStart,
           numericChar,
           _char;
         for (i = charStart; i < charEnd; i++) {
           delete styleObj[i];
         }
-        for (_char in this.styles[lineStart]) {
+        for (_char in this.textStyles[lineStart]) {
           numericChar = parseInt(_char, 10);
           if (numericChar >= charEnd) {
             styleObj[numericChar - diff] = styleObj[_char];
@@ -2931,13 +2856,13 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   shiftLineStyles: function (lineIndex, offset) {
     // shift all line styles by offset upward or downward
     // do not clone deep. we need new array, not new style objects
-    var clonedStyles = clone(this.styles);
-    for (var line in this.styles) {
+    var clonedStyles = clone(this.textStyles);
+    for (var line in this.textStyles) {
       var numericLine = parseInt(line, 10);
       if (numericLine > lineIndex) {
-        this.styles[numericLine + offset] = clonedStyles[numericLine];
+        this.textStyles[numericLine + offset] = clonedStyles[numericLine];
         if (!clonedStyles[numericLine - offset]) {
-          delete this.styles[numericLine];
+          delete this.textStyles[numericLine];
         }
       }
     }
@@ -2972,21 +2897,21 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
 
     qty || (qty = 1);
     this.shiftLineStyles(lineIndex, qty);
-    if (this.styles[lineIndex]) {
-      currentCharStyle = this.styles[lineIndex][
+    if (this.textStyles[lineIndex]) {
+      currentCharStyle = this.textStyles[lineIndex][
         charIndex === 0 ? charIndex : charIndex - 1
       ];
     }
     // we clone styles of all chars
     // after cursor onto the current line
-    for (var index in this.styles[lineIndex]) {
+    for (var index in this.textStyles[lineIndex]) {
       var numIndex = parseInt(index, 10);
       if (numIndex >= charIndex) {
         somethingAdded = true;
-        newLineStyles[numIndex - charIndex] = this.styles[lineIndex][index];
+        newLineStyles[numIndex - charIndex] = this.textStyles[lineIndex][index];
         // remove lines from the previous line since they're on a new line now
         if (!(isEndOfLine && charIndex === 0)) {
-          delete this.styles[lineIndex][index];
+          delete this.textStyles[lineIndex][index];
         }
       }
     }
@@ -2994,7 +2919,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     if (somethingAdded && !isEndOfLine) {
       // if is end of line, the extra style we copied
       // is probably not something we want
-      this.styles[lineIndex + qty] = newLineStyles;
+      this.textStyles[lineIndex + qty] = newLineStyles;
       styleCarriedOver = true;
     }
     if (styleCarriedOver) {
@@ -3005,11 +2930,11 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     // we clone current char style onto the next (otherwise empty) line
     while (qty > 0) {
       if (copiedStyle && copiedStyle[qty - 1]) {
-        this.styles[lineIndex + qty] = { 0: clone(copiedStyle[qty - 1]) };
+        this.textStyles[lineIndex + qty] = { 0: clone(copiedStyle[qty - 1]) };
       } else if (currentCharStyle) {
-        this.styles[lineIndex + qty] = { 0: clone(currentCharStyle) };
+        this.textStyles[lineIndex + qty] = { 0: clone(currentCharStyle) };
       } else {
-        delete this.styles[lineIndex + qty];
+        delete this.textStyles[lineIndex + qty];
       }
       qty--;
     }
@@ -3024,10 +2949,10 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param {Array} copiedStyle array of style objects
    */
   insertCharStyleObject: function (lineIndex, charIndex, quantity, copiedStyle) {
-    if (!this.styles) {
-      this.styles = {};
+    if (!this.textStyles) {
+      this.textStyles = {};
     }
-    var currentLineStyles = this.styles[lineIndex],
+    var currentLineStyles = this.textStyles[lineIndex],
       currentLineStylesCloned = currentLineStyles ? clone(currentLineStyles) : {};
 
     quantity || (quantity = 1);
@@ -3050,10 +2975,10 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
         if (!Object.keys(copiedStyle[quantity]).length) {
           continue;
         }
-        if (!this.styles[lineIndex]) {
-          this.styles[lineIndex] = {};
+        if (!this.textStyles[lineIndex]) {
+          this.textStyles[lineIndex] = {};
         }
-        this.styles[lineIndex][charIndex + quantity] = clone(copiedStyle[quantity]);
+        this.textStyles[lineIndex][charIndex + quantity] = clone(copiedStyle[quantity]);
       }
       return;
     }
@@ -3062,7 +2987,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     }
     var newStyle = currentLineStyles[charIndex ? charIndex - 1 : 1];
     while (newStyle && quantity--) {
-      this.styles[lineIndex][charIndex + quantity] = clone(newStyle);
+      this.textStyles[lineIndex][charIndex + quantity] = clone(newStyle);
     }
   },
 
@@ -3110,7 +3035,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
           copiedStyle
         );
       } else if (copiedStyle) {
-        this.styles[cursorLoc.lineIndex + i][0] = copiedStyle[0];
+        this.textStyles[cursorLoc.lineIndex + i][0] = copiedStyle[0];
       }
       copiedStyle = copiedStyle && copiedStyle.slice(addedLines[i] + 1);
     }
@@ -3620,7 +3545,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       removeFrom,
       removeTo;
     if (this.hiddenTextarea.value === '') {
-      this.styles = {};
+      this.textStyles = {};
       this.updateFromTextArea();
       this.fire('changed');
       if (this.canvas) {
@@ -4170,6 +4095,363 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     }
     return shouldClear;
   },
+
+  // Textbox
+  /**
+   * Minimum width of textbox, in pixels.
+   * @type Number
+   * @default
+   */
+  minWidth: 20,
+
+  /**
+   * Minimum calculated width of a textbox, in pixels.
+   * fixed to 2 so that an empty textbox cannot go to 0
+   * and is still selectable without text.
+   * @type Number
+   * @default
+   */
+  dynamicMinWidth: 2,
+
+  /**
+   * Cached array of text wrapping.
+   * @type Array
+   */
+  __cachedLines: null,
+
+  /**
+   * Override standard Object class values
+   */
+  lockScalingFlip: true,
+
+  /**
+   * Override standard Object class values
+   * Textbox needs this on false
+   */
+  noScaleCache: false,
+
+  /**
+   * Use this regular expression to split strings in breakable lines
+   * @private
+   */
+  _wordJoiners: /[ \t\r]/,
+
+  /**
+   * Use this boolean property in order to split strings that have no white space concept.
+   * this is a cheap way to help with chinese/japaense
+   * @type Boolean
+   * @since 2.6.0
+   */
+  splitByGrapheme: false,
+
+  /**
+   * Generate an object that translates the style object so that it is
+   * broken up by visual lines (new lines and automatic wrapping).
+   * The original text styles object is broken up by actual lines (new lines only),
+   * which is only sufficient for Text / IText
+   * @private
+   */
+  _generateStyleMap: function (textInfo) {
+    var realLineCount = 0,
+      realLineCharCount = 0,
+      charCount = 0,
+      map = {};
+
+    for (var i = 0; i < textInfo.graphemeLines.length; i++) {
+      if (textInfo.graphemeText[charCount] === '\n' && i > 0) {
+        realLineCharCount = 0;
+        charCount++;
+        realLineCount++;
+      } else if (
+        !this.splitByGrapheme &&
+        this._reSpaceAndTab.test(textInfo.graphemeText[charCount]) &&
+        i > 0
+      ) {
+        // this case deals with space's that are removed from end of lines when wrapping
+        realLineCharCount++;
+        charCount++;
+      }
+
+      map[i] = { line: realLineCount, offset: realLineCharCount };
+
+      charCount += textInfo.graphemeLines[i].length;
+      realLineCharCount += textInfo.graphemeLines[i].length;
+    }
+
+    return map;
+  },
+
+  /**
+   * @param {Number} lineIndex
+   * @param {Number} charIndex
+   * @private
+   */
+  _getStyleDeclaration: function (lineIndex, charIndex) {
+    if (this._styleMap && !this.isWrapping) {
+      var map = this._styleMap[lineIndex];
+      if (!map) {
+        return null;
+      }
+      lineIndex = map.line;
+      charIndex = map.offset + charIndex;
+    }
+
+    var lineStyle = this.textStyles && this.textStyles[lineIndex];
+    if (!lineStyle) {
+      return null;
+    }
+    return lineStyle[charIndex];
+  },
+
+  /**
+   * @param {Number} lineIndex
+   * @param {Number} charIndex
+   * @param {Object} style
+   * @private
+   */
+  _setStyleDeclaration: function (lineIndex, charIndex, style) {
+    var map = this._styleMap[lineIndex];
+    lineIndex = map.line;
+    charIndex = map.offset + charIndex;
+
+    this.textStyles[lineIndex][charIndex] = style;
+  },
+
+  /**
+   * @param {Number} lineIndex
+   * @param {Number} charIndex
+   * @private
+   */
+  _deleteStyleDeclaration: function (lineIndex, charIndex) {
+    var map = this._styleMap[lineIndex];
+    lineIndex = map.line;
+    charIndex = map.offset + charIndex;
+    delete this.textStyles[lineIndex][charIndex];
+  },
+
+  /**
+   * probably broken need a fix
+   * Returns the real style line that correspond to the wrapped lineIndex line
+   * Used just to verify if the line does exist or not.
+   * @param {Number} lineIndex
+   * @returns {Boolean} if the line exists or not
+   * @private
+   */
+  _getLineStyle: function (lineIndex) {
+    var map = this._styleMap[lineIndex];
+    return !!this.styles[map.line];
+  },
+
+  /**
+   * Set the line style to an empty object so that is initialized
+   * @param {Number} lineIndex
+   * @param {Object} style
+   * @private
+   */
+  _setLineStyle: function (lineIndex) {
+    var map = this._styleMap[lineIndex];
+    this.textStyles[map.line] = {};
+  },
+
+  /**
+   * Wraps text using the 'width' property of Textbox. First this function
+   * splits text on newlines, so we preserve newlines entered by the user.
+   * Then it wraps each line using the width of the Textbox by calling
+   * _wrapLine().
+   * @param {Array} lines The string array of text that is split into lines
+   * @param {Number} desiredWidth width you want to wrap to
+   * @returns {Array} Array of lines
+   */
+  _wrapText: function (lines, desiredWidth) {
+    var wrapped = [],
+      i;
+    this.isWrapping = true;
+    for (i = 0; i < lines.length; i++) {
+      wrapped = wrapped.concat(this._wrapLine(lines[i], i, desiredWidth));
+    }
+    this.isWrapping = false;
+    return wrapped;
+  },
+
+  /**
+   * Helper function to measure a string of text, given its lineIndex and charIndex offset
+   * it gets called when charBounds are not available yet.
+   * @param {CanvasRenderingContext2D} ctx
+   * @param {String} text
+   * @param {number} lineIndex
+   * @param {number} charOffset
+   * @returns {number}
+   * @private
+   */
+  _measureWord: function (word, lineIndex, charOffset) {
+    var width = 0,
+      prevGrapheme,
+      skipLeft = true;
+    charOffset = charOffset || 0;
+    for (var i = 0, len = word.length; i < len; i++) {
+      var box = this._getGraphemeBox(
+        word[i],
+        lineIndex,
+        i + charOffset,
+        prevGrapheme,
+        skipLeft
+      );
+      width += box.kernedWidth;
+      prevGrapheme = word[i];
+    }
+    return width;
+  },
+
+  /**
+   * Wraps a line of text using the width of the Textbox and a context.
+   * @param {Array} line The grapheme array that represent the line
+   * @param {Number} lineIndex
+   * @param {Number} desiredWidth width you want to wrap the line to
+   * @param {Number} reservedSpace space to remove from wrapping for custom functionalities
+   * @returns {Array} Array of line(s) into which the given text is wrapped
+   * to.
+   */
+  _wrapLine: function (_line, lineIndex, desiredWidth, reservedSpace) {
+    var lineWidth = 0,
+      splitByGrapheme = this.splitByGrapheme,
+      graphemeLines = [],
+      line = [],
+      // spaces in different languges?
+      words = splitByGrapheme
+        ? fabric.util.string.graphemeSplit(_line)
+        : _line.split(this._wordJoiners),
+      word = '',
+      offset = 0,
+      infix = splitByGrapheme ? '' : ' ',
+      wordWidth = 0,
+      infixWidth = 0,
+      largestWordWidth = 0,
+      lineJustStarted = true,
+      additionalSpace = this._getWidthOfCharSpacing(),
+      reservedSpace = reservedSpace || 0;
+    // fix a difference between split and graphemeSplit
+    if (words.length === 0) {
+      words.push([]);
+    }
+    desiredWidth -= reservedSpace;
+    for (var i = 0; i < words.length; i++) {
+      // if using splitByGrapheme words are already in graphemes.
+      word = splitByGrapheme ? words[i] : fabric.util.string.graphemeSplit(words[i]);
+      wordWidth = this._measureWord(word, lineIndex, offset);
+      offset += word.length;
+
+      lineWidth += infixWidth + wordWidth - additionalSpace;
+      if (lineWidth >= desiredWidth && !lineJustStarted) {
+        graphemeLines.push(line);
+        line = [];
+        lineWidth = wordWidth;
+        lineJustStarted = true;
+      } else {
+        lineWidth += additionalSpace;
+      }
+
+      if (!lineJustStarted && !splitByGrapheme) {
+        line.push(infix);
+      }
+      line = line.concat(word);
+
+      infixWidth = splitByGrapheme ? 0 : this._measureWord([infix], lineIndex, offset);
+      offset++;
+      lineJustStarted = false;
+      // keep track of largest word
+      if (wordWidth > largestWordWidth) {
+        largestWordWidth = wordWidth;
+      }
+    }
+
+    i && graphemeLines.push(line);
+
+    if (largestWordWidth + reservedSpace > this.dynamicMinWidth) {
+      this.dynamicMinWidth = largestWordWidth - additionalSpace + reservedSpace;
+    }
+    return graphemeLines;
+  },
+
+  /**
+   * Detect if the text line is ended with an hard break
+   * text and itext do not have wrapping, return false
+   * @param {Number} lineIndex text to split
+   * @return {Boolean}
+   */
+  isEndOfWrapping: function (lineIndex) {
+    if (!this._styleMap[lineIndex + 1]) {
+      // is last line, return true;
+      return true;
+    }
+    if (this._styleMap[lineIndex + 1].line !== this._styleMap[lineIndex].line) {
+      // this is last line before a line break, return true;
+      return true;
+    }
+    return false;
+  },
+
+  /**
+   * Detect if a line has a linebreak and so we need to account for it when moving
+   * and counting style.
+   * @return Number
+   */
+  missingNewlineOffset: function (lineIndex) {
+    if (this.splitByGrapheme) {
+      return this.isEndOfWrapping(lineIndex) ? 1 : 0;
+    }
+    return 1;
+  },
+
+  /**
+   * Gets lines of text to render in the Textbox. This function calculates
+   * text wrapping on the fly every time it is called.
+   * @param {String} text text to split
+   * @returns {Array} Array of lines in the Textbox.
+   * @override
+   */
+  _splitTextIntoLines: function (text) {
+    var lines = text.split(this._reNewline),
+      newLines = new Array(lines.length),
+      newLine = ['\n'],
+      newText = [];
+    for (var i = 0; i < lines.length; i++) {
+      newLines[i] = fabric.util.string.graphemeSplit(lines[i]);
+      newText = newText.concat(newLines[i], newLine);
+    }
+    newText.pop();
+    newText = {
+      _unwrappedLines: newLines,
+      lines: lines,
+      graphemeText: newText,
+      graphemeLines: newLines,
+    };
+    var graphemeLines = this._wrapText(newText.lines, this.width),
+      lines = new Array(graphemeLines.length);
+    for (var i = 0; i < graphemeLines.length; i++) {
+      lines[i] = graphemeLines[i].join('');
+    }
+    newText.lines = lines;
+    newText.graphemeLines = graphemeLines;
+    return newText;
+  },
+
+  getMinWidth: function () {
+    return Math.max(this.minWidth, this.dynamicMinWidth);
+  },
+
+  _removeExtraneousStyles: function () {
+    var linesToKeep = {};
+    for (var prop in this._styleMap) {
+      if (this._textLines[prop]) {
+        linesToKeep[this._styleMap[prop].line] = 1;
+      }
+    }
+    for (var prop in this.styles) {
+      if (!linesToKeep[prop]) {
+        delete this.styles[prop];
+      }
+    }
+  },
 });
 
 EditableTextShape.genericFonts = [
@@ -4179,5 +4461,9 @@ EditableTextShape.genericFonts = [
   'fantasy',
   'monospace',
 ];
+
+EditableTextShape.fromObject = function (object, callback) {
+  return fabric.Object._fromObject('EditableTextShape', object, callback);
+};
 
 export default EditableTextShape;
