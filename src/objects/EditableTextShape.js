@@ -1,6 +1,6 @@
 // import { fabric } from '../dist/fabric';
 import { fabric } from 'fabric';
-import { get } from 'lodash';
+import { get, max } from 'lodash';
 
 var clone = fabric.util.object.clone;
 
@@ -1359,7 +1359,9 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     var dims = this.callSuper('_getCacheCanvasDimensions');
     var fontSize = this.fontSize;
     dims.width += fontSize * dims.zoomX;
-    dims.height += fontSize * dims.zoomY;
+    // dims.height 是cacheCanvas 的高度
+    dims.height +=
+      max([dims.height, this.calcTextHeight() * dims.zoomY]) + fontSize * dims.zoomY;
     return dims;
   },
 

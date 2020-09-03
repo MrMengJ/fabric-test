@@ -19,8 +19,8 @@ function Demo7() {
     if (canvasEl.current) {
       const canvasOptions = {
         backgroundColor: '#f3f3f3',
-        width: 1000,
-        height: 700,
+        width: 1500,
+        height: 900,
       };
 
       canvas = new ECanvas(canvasEl.current, canvasOptions);
@@ -40,7 +40,7 @@ function Demo7() {
         textAlign: 'center',
         fontFamily: 'Ubuntu',
         // underline: true,
-        objectCaching: false,
+        // objectCaching: false,
         textStyle: {
           fill: 'red',
         },
