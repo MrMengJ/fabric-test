@@ -2,9 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 import ECanvas from '../../objects/ECanvas';
-import LabeledRect from '../../objects/LabeledRect';
 import EditableTextShape from '../../objects/EditableTextShape';
-import { filter, forEach, get } from 'lodash';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;
@@ -48,12 +46,6 @@ function Demo7() {
       });
 
       console.log('editableTextShape', editableTextShape);
-
-      canvas.on('object:scaling', (obj) => {
-        // console.log('obj', obj);
-        // console.log('target', obj.target);
-      });
-
       canvas.add(editableTextShape);
 
       canvas.renderAll();

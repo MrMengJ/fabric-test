@@ -809,6 +809,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       charBox,
       currentDecoration,
       maxHeight,
+      stroke = this.textStyle.stroke,
+      strokeWidth = this.textStyle.strokeWidth,
       currentFill,
       lastFill,
       charSpacing = this._getWidthOfCharSpacing();
@@ -825,14 +827,22 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       boxStart = 0;
       boxWidth = 0;
       lastDecoration = this.getValueOfPropertyAt(i, 0, type);
-      lastFill = this.getValueOfPropertyAt(i, 0, 'fill');
+      lastFill = this.getValueOfPropertyAt(
+        i,
+        0,
+        stroke && strokeWidth >= 1 ? 'stroke' : 'fill'
+      );
       top = topOffset + maxHeight * (1 - this._fontSizeFraction);
       size = this.getHeightOfChar(i, 0);
       dy = this.getValueOfPropertyAt(i, 0, 'deltaY');
       for (var j = 0, jlen = line.length; j < jlen; j++) {
         charBox = this.__charBounds[i][j];
         currentDecoration = this.getValueOfPropertyAt(i, j, type);
-        currentFill = this.getValueOfPropertyAt(i, j, 'fill');
+        currentFill = this.getValueOfPropertyAt(
+          i,
+          j,
+          stroke && strokeWidth >= 1 ? 'stroke' : 'fill'
+        );
         _size = this.getHeightOfChar(i, j);
         _dy = this.getValueOfPropertyAt(i, j, 'deltaY');
         if (

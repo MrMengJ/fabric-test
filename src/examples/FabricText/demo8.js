@@ -23,7 +23,7 @@ function Demo8() {
         height: 700,
       };
 
-      canvas = new ECanvas(canvasEl.current, canvasOptions);
+      canvas = new fabric.Canvas(canvasEl.current, canvasOptions);
 
       const TextBox = new fabric.Textbox(
         '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test',
@@ -32,9 +32,12 @@ function Demo8() {
           top: 200,
           width: 200,
           height: 200,
-          backgroundColor: 'red',
-          fontSize: 14,
+          fontSize: 40,
           splitByGrapheme: true,
+          underline: true,
+          strokeWidth: 1,
+          stroke: "#40dd33",
+          fill: 'transparent',
         }
       );
 
