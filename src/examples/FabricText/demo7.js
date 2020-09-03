@@ -29,16 +29,17 @@ function Demo7() {
       const editableTextShape = new EditableTextShape({
         left: 100,
         top: 200,
-        width: 200,
-        height: 200,
+        width: 300,
+        height: 300,
         fill: '#34eeeb',
         // rx: 20,
         // ry: 20,
+        fontSize: 20,
         text:
           '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test\n中文test中文test中文test中文test中文test中文test',
         textAlign: 'center',
         fontFamily: 'Ubuntu',
-        underline: true,
+        // underline: true,
         objectCaching: false,
         textStyle: {
           fill: 'red',

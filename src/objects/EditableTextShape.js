@@ -738,8 +738,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       // once text is measured we need to make space fatter to make justified text.
       this.enlargeSpaces();
     }
-    // TODO handle height
-    // this.height = this.calcTextHeight();
     this.saveState({ propertySet: '_dimensionAffectingProps' });
   },
 
