@@ -5,12 +5,11 @@ import ECanvas from '../../objects/ECanvas';
 import EditableTextShape from '../../objects/EditableTextShape';
 
 const StyledCanvas = styled.canvas`
-  width: 1000px;
-  height: 600px;
   border: 1px solid red;
 `;
 
 let canvas;
+let editableTextShape;
 
 function Demo7() {
   const canvasEl = useRef(null);
@@ -20,13 +19,13 @@ function Demo7() {
       const canvasOptions = {
         backgroundColor: '#f3f3f3',
         width: 1500,
-        height: 900,
+        height: 700,
       };
 
       canvas = new ECanvas(canvasEl.current, canvasOptions);
       window.ecanvas = canvas;
 
-      const editableTextShape = new EditableTextShape({
+      editableTextShape = new EditableTextShape({
         left: 100,
         top: 200,
         width: 300,
@@ -40,6 +39,8 @@ function Demo7() {
         textAlign: 'center',
         verticalAlign: 'middle',
         fontFamily: 'Ubuntu',
+        // fontWeight: 'bold',
+        // fontStyle: 'italic',
         underline: true,
         borderColor: '#f94eff',
         stroke: '#feff5b',
@@ -48,7 +49,7 @@ function Demo7() {
         // selectable:false,
         // overline: true,
         // linethrough: true,
-        // objectCaching  : false,
+        objectCaching: false,
         textStyle: {
           fill: 'red',
         },
@@ -61,7 +62,17 @@ function Demo7() {
     }
   }, []);
 
-  return <StyledCanvas ref={canvasEl} id={'canvas'} />;
+  const handleAddScale = () => {
+    editableTextShape.set('scaleX', 2);
+    canvas.renderAll();
+  };
+
+  return (
+    <>
+      <StyledCanvas ref={canvasEl} id={'canvas'} />
+      <button onClick={handleAddScale}>+</button>
+    </>
+  );
 }
 
 Demo7.propTypes = {};

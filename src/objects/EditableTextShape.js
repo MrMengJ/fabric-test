@@ -406,6 +406,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     this._renderPaintInOrder(ctx);
 
     // render text
+    ctx.scale(1 / this.scaleX, 1 / this.scaleY); // avoid text scales
     this._setTextStyles(ctx);
     this._renderTextDecoration(ctx, 'underline');
     this._renderText(ctx);
