@@ -26,8 +26,8 @@ function Demo7() {
       window.ecanvas = canvas;
 
       editableTextShape = new EditableTextShape({
-        left: 100,
-        top: 200,
+        // left: 100,
+        // top: 200,
         width: 300,
         height: 300,
         fill: '#34eeeb',
@@ -36,20 +36,20 @@ function Demo7() {
         fontSize: 20,
         text:
           '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test\n中文test中文test中文test中文test中文test中文test',
-        textAlign: 'center',
-        verticalAlign: 'middle',
+        // textAlign: 'center',
+        // verticalAlign: 'middle',
         fontFamily: 'Ubuntu',
         // fontWeight: 'bold',
         // fontStyle: 'italic',
         underline: true,
         borderColor: '#f94eff',
         stroke: '#feff5b',
-        strokeWidth: 3,
-        strokeDashArray: [10, 5],
+        strokeWidth: 0,
+        // strokeDashArray: [10, 5],
         // selectable:false,
         // overline: true,
         // linethrough: true,
-        objectCaching: false,
+        // objectCaching: false,
         textStyle: {
           fill: 'red',
         },

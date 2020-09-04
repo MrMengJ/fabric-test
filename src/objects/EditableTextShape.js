@@ -198,6 +198,18 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   ),
 
   /**
+   * When `false`, the stoke width will scale with the object.
+   * When `true`, the stroke will always match the exact pixel size entered for stroke width.
+   * default to false
+   * @since 2.6.0
+   * @type Boolean
+   * @default false
+   * @type Boolean
+   * @default false
+   */
+  strokeUniform: true,
+
+  /**
    * Shadow object representing shadow of this shape.
    * <b>Backwards incompatibility note:</b> This property was named "textShadow" (String) until v1.2.11
    * @type fabric.Shadow
@@ -405,8 +417,22 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
 
     this._renderPaintInOrder(ctx);
 
+    // render text handler
+
+    // set ctx to avoid text scales
+    const transform = ctx.getTransform();
+    const originX = transform.e;
+    const originY = transform.f;
+    // console.log('==========', transform);
+    // debugger;
+    ctx.scale(1 / this.scaleX, 1 / this.scaleY);
+    ctx.translate(
+      -((originX - this.left - this.strokeWidth / 2) / this.scaleX) * (this.scaleX - 1),
+      -((originY - this.top - this.strokeWidth / 2) / this.scaleY) * (this.scaleY - 1)
+    );
+    // console.log('+++++++++', ctx.getTransform());
+
     // render text
-    ctx.scale(1 / this.scaleX, 1 / this.scaleY); // avoid text scales
     this._setTextStyles(ctx);
     this._renderTextDecoration(ctx, 'underline');
     this._renderText(ctx);
