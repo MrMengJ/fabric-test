@@ -38,9 +38,13 @@ function Demo7() {
         text:
           '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test\n中文test中文test中文test中文test中文test中文test',
         textAlign: 'center',
+        verticalAlign: 'middle',
         fontFamily: 'Ubuntu',
-        // underline: true,
-        // objectCaching: false,
+        underline: true,
+        // selectable:false,
+        // overline: true,
+        // linethrough: true,
+        // objectCaching  : false,
         textStyle: {
           fill: 'red',
         },

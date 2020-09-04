@@ -115,6 +115,13 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   textAlign: 'left',
 
   /**
+   * Text vertical alignment. Possible values: "top", "middle", "bottom",
+   * @type String
+   * @default
+   */
+  verticalAlign: 'top',
+
+  /**
    * Font style . Possible values: "", "normal", "italic" or "oblique".
    * @type String
    * @default
@@ -1184,6 +1191,13 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @return {Number} Top offset
    */
   _getTopOffset: function () {
+    if (this.verticalAlign === 'top') {
+      return -this.height / 2;
+    } else if (this.verticalAlign === 'middle') {
+      return -this.calcTextHeight() / 2;
+    } else if (this.verticalAlign === 'bottom') {
+      return -(this.calcTextHeight() - this.height / 2);
+    }
     return -this.height / 2;
   },
 
@@ -2163,6 +2177,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   initAddedHandler: function () {
     var _this = this;
+    // TODO IText need rename ?
     this.on('added', function () {
       var canvas = _this.canvas;
       if (canvas) {
@@ -2178,6 +2193,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
 
   initRemovedHandler: function () {
     var _this = this;
+    // TODO IText need rename ?
     this.on('removed', function () {
       var canvas = _this.canvas;
       if (canvas) {
@@ -2196,6 +2212,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @private
    */
   _initCanvasHandlers: function (canvas) {
+    // TODO IText need rename ?
     canvas._mouseUpITextHandler = function () {
       if (canvas._iTextInstances) {
         canvas._iTextInstances.forEach(function (obj) {
@@ -3317,10 +3334,11 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       charIndex = 0,
       lineIndex = 0,
       lineLeftOffset,
-      line;
+      line,
+      topOffset = this.height / 2 + this._getTopOffset();
 
     for (var i = 0, len = this._textLines.length; i < len; i++) {
-      if (height <= mouseOffset.y) {
+      if (height <= mouseOffset.y - topOffset) {
         height += this.getHeightOfLine(i) * this.scaleY;
         lineIndex = i;
         if (i > 0) {
