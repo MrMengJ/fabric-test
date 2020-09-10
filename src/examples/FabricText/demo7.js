@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
+import { fabric } from 'fabric';
 
 import ECanvas from '../../objects/ECanvas';
 import EditableTextShape from '../../objects/EditableTextShape';
@@ -10,9 +11,11 @@ const StyledCanvas = styled.canvas`
 
 let canvas;
 let editableTextShape;
+let editableTextShape2;
 
 function Demo7() {
   const canvasEl = useRef(null);
+  const [angle, setAngle] = useState();
 
   useEffect(() => {
     if (canvasEl.current) {
@@ -20,20 +23,22 @@ function Demo7() {
         backgroundColor: '#f3f3f3',
         width: 1500,
         height: 700,
+        // selectionFullyContained:false
       };
 
-      canvas = new ECanvas(canvasEl.current, canvasOptions);
+      canvas = new fabric.Canvas(canvasEl.current, canvasOptions);
       window.ecanvas = canvas;
 
       editableTextShape = new EditableTextShape({
-        // left: 100,
-        // top: 200,
+        left: 100,
+        top: 200,
         width: 300,
         height: 300,
         fill: '#34eeeb',
         // rx: 20,
         // ry: 20,
         fontSize: 20,
+        // angle: 163,
         text:
           '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test\n中文test中文test中文test中文test中文test中文test',
         // textAlign: 'center',
@@ -49,7 +54,38 @@ function Demo7() {
         // selectable:false,
         // overline: true,
         // linethrough: true,
-        // objectCaching: false,
+        // lockScalingX: true,
+        // lockScalingY: true,
+        // objectCaching: true,
+        textStyle: {
+          fill: 'red',
+        },
+      });
+
+      editableTextShape2 = new EditableTextShape({
+        type: '=========',
+        left: 500,
+        top: 100,
+        width: 300,
+        height: 300,
+        fill: '#34eeeb',
+        fontSize: 20,
+        // angle: 30,
+        text: '222222222222222222222222222',
+        // textAlign: 'center',
+        // verticalAlign: 'middle',
+        fontFamily: 'Ubuntu',
+        // fontWeight: 'bold',
+        // fontStyle: 'italic',
+        underline: true,
+        borderColor: '#f94eff',
+        stroke: '#feff5b',
+        strokeWidth: 0,
+        // strokeDashArray: [10, 5],
+        // selectable:false,
+        // overline: true,
+        // linethrough: true,
+        // objectCaching: true,
         textStyle: {
           fill: 'red',
         },
@@ -57,20 +93,51 @@ function Demo7() {
 
       console.log('editableTextShape', editableTextShape);
       canvas.add(editableTextShape);
+      canvas.add(editableTextShape2);
+
+      // const group = new fabric.Group([editableTextShape, editableTextShape2], {
+      //   objectCaching: false, // group must set objectCaching false
+      // });
+      // canvas.add(group);
 
       canvas.renderAll();
     }
   }, []);
 
   const handleAddScale = () => {
-    editableTextShape.set('scaleX', 2);
+    editableTextShape.set('scaleX', 3);
+    // editableTextShape2.set('scaleX', 3);
+    canvas.renderAll();
+  };
+
+  const handleZoomOut = () => {
+    const zoom = canvas.getZoom();
+    console.log('zoom', zoom);
+    canvas.setZoom(zoom + 1);
+  };
+
+  const handleAddAngle = () => {
+    const angle = editableTextShape2.get('angle');
+    editableTextShape2.rotate(angle + 30);
+    setAngle(angle + 30);
+    canvas.renderAll();
+  };
+
+  const handleSubtractAngle = () => {
+    const angle = editableTextShape2.get('angle');
+    editableTextShape2.rotate(angle - 30);
+    setAngle(angle - 30);
     canvas.renderAll();
   };
 
   return (
     <>
       <StyledCanvas ref={canvasEl} id={'canvas'} />
-      <button onClick={handleAddScale}>+</button>
+      <button onClick={handleAddScale}>+ scale</button>
+      <button onClick={handleZoomOut}>+ zoom</button>
+      <button onClick={handleAddAngle}>+ 30°</button>
+      <button onClick={handleSubtractAngle}>- 30°</button>
+      <p>角度：{angle}</p>
     </>
   );
 }

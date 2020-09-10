@@ -319,6 +319,25 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   MIN_TEXT_WIDTH: 2,
 
   /**
+   * When true, objects use center point as the origin of scale transformation.
+   * <b>Backwards incompatibility note:</b> This property replaces "centerTransform" (Boolean).
+   * @since 1.3.4
+   * @type Boolean
+   * @default
+   */
+  centeredScaling: true,
+
+  /**
+   * When `true`, object is cached on an additional canvas.
+   * When `false`, object is not cached unless necessary ( clipPath )
+   * default to true
+   * @since 1.7.0
+   * @type Boolean
+   * @default false
+   */
+  objectCaching: false,
+
+  /**
    * Constructor
    * @param {Object} [options] Options object
    * @return {EditableTextShape} thisArg
@@ -419,18 +438,18 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
 
     // render text handler
 
-    // set ctx to avoid text scales
+    // set ctx to avoid text scale or translate
     const transform = ctx.getTransform();
-    const originX = transform.e;
-    const originY = transform.f;
-    // console.log('==========', transform);
-    // debugger;
-    ctx.scale(1 / this.scaleX, 1 / this.scaleY);
-    ctx.translate(
-      -((originX - this.left - this.strokeWidth / 2) / this.scaleX) * (this.scaleX - 1),
-      -((originY - this.top - this.strokeWidth / 2) / this.scaleY) * (this.scaleY - 1)
+    const radians = fabric.util.degreesToRadians(
+      this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
     );
-    // console.log('+++++++++', ctx.getTransform());
+    const scaleX = this.objectCaching ? transform.a : transform.a / Math.cos(radians);
+    const scaleY = this.objectCaching ? transform.d : transform.d / Math.cos(radians);
+    ctx.scale(1 / scaleX, 1 / scaleY);
+    ctx.translate(
+      -((this.width / 2) * max([scaleX - 1, 0])),
+      -((this.height / 2) * max([scaleY - 1, 0]))
+    );
 
     // render text
     this._setTextStyles(ctx);
@@ -1401,7 +1420,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     var fontSize = this.fontSize;
     dims.width += fontSize * dims.zoomX;
     // dims.height 是cacheCanvas 的高度
-    dims.height +=
+    dims.height =
       max([dims.height, this.calcTextHeight() * dims.zoomY]) + fontSize * dims.zoomY;
     return dims;
   },
