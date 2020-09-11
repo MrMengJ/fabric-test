@@ -436,20 +436,18 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
 
     this._renderPaintInOrder(ctx);
 
+    // initDimensions
+    this.initDimensions();
+
     // render text handler
 
-    // set ctx to avoid text scale or translate
-    const transform = ctx.getTransform();
-    const radians = fabric.util.degreesToRadians(
-      this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
-    );
-    const scaleX = this.objectCaching ? transform.a : transform.a / Math.cos(radians);
-    const scaleY = this.objectCaching ? transform.d : transform.d / Math.cos(radians);
-    ctx.scale(1 / scaleX, 1 / scaleY);
-    ctx.translate(
-      -((this.width / 2) * max([scaleX - 1, 0])),
-      -((this.height / 2) * max([scaleY - 1, 0]))
-    );
+    // set ctx to avoid text scale
+    this._resetCtxScaleForTextRender(ctx);
+
+    // ctx.translate(
+    //   -((this.width / 2) * max([scaleX - 1, 0])),
+    //   -((this.height / 2) * max([scaleY - 1, 0]))
+    // );
 
     // render text
     this._setTextStyles(ctx);
@@ -1229,7 +1227,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @return {Number} Left offset
    */
   _getLeftOffset: function () {
-    return -this.width / 2;
+    return -this._getActualWidth() / 2;
   },
 
   /**
@@ -1238,13 +1236,13 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   _getTopOffset: function () {
     if (this.verticalAlign === 'top') {
-      return -this.height / 2;
+      return -this._getActualHeight() / 2;
     } else if (this.verticalAlign === 'middle') {
       return -this.calcTextHeight() / 2;
     } else if (this.verticalAlign === 'bottom') {
-      return -(this.calcTextHeight() - this.height / 2);
+      return -(this.calcTextHeight() - this._getActualHeight() / 2);
     }
-    return -this.height / 2;
+    return -this._getActualHeight() / 2;
   },
 
   /**
@@ -1308,18 +1306,19 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @return {Number} Line left offset
    */
   _getLineLeftOffset: function (lineIndex) {
+    const actualWidth = this._getActualWidth();
     var lineWidth = this.getLineWidth(lineIndex);
     if (this.textAlign === 'center') {
-      return (this.width - lineWidth) / 2;
+      return (actualWidth - lineWidth) / 2;
     }
     if (this.textAlign === 'right') {
-      return this.width - lineWidth;
+      return actualWidth - lineWidth;
     }
     if (this.textAlign === 'justify-center' && this.isEndOfWrapping(lineIndex)) {
-      return (this.width - lineWidth) / 2;
+      return (actualWidth - lineWidth) / 2;
     }
     if (this.textAlign === 'justify-right' && this.isEndOfWrapping(lineIndex)) {
-      return this.width - lineWidth;
+      return actualWidth - lineWidth;
     }
     return 0;
   },
@@ -2104,6 +2103,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param {CanvasRenderingContext2D} ctx transformed context to draw on
    */
   renderSelection: function (boundaries, ctx) {
+    this._resetCtxScaleForTextRender(ctx);
+
     var selectionStart = this.inCompositionMode
         ? this.hiddenTextarea.selectionStart
         : this.selectionStart,
@@ -4496,7 +4497,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       graphemeText: newText,
       graphemeLines: newLines,
     };
-    var graphemeLines = this._wrapText(newText.lines, this.width),
+
+    var graphemeLines = this._wrapText(newText.lines, this._getActualWidth()),
       lines = new Array(graphemeLines.length);
     for (var i = 0; i < graphemeLines.length; i++) {
       lines[i] = graphemeLines[i].join('');
@@ -4522,6 +4524,36 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
         delete this.styles[prop];
       }
     }
+  },
+
+  //  custom added
+
+  /**
+   * Get object actual width
+   */
+  _getActualWidth: function () {
+    return this.getTotalObjectScaling().scaleX * this.width;
+  },
+
+  /**
+   * Get object actual height
+   */
+  _getActualHeight: function () {
+    return this.getTotalObjectScaling().scaleY * this.height;
+  },
+
+  /**
+   * set ctx to avoid text scale
+   * @param ctx
+   */
+  _resetCtxScaleForTextRender: function (ctx) {
+    const transform = ctx.getTransform();
+    const radians = fabric.util.degreesToRadians(
+      this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
+    );
+    const scaleX = this.objectCaching ? transform.a : transform.a / Math.cos(radians);
+    const scaleY = this.objectCaching ? transform.d : transform.d / Math.cos(radians);
+    ctx.scale(1 / scaleX, 1 / scaleY);
   },
 });
 

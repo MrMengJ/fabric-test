@@ -31,18 +31,19 @@ function Demo7() {
 
       editableTextShape = new EditableTextShape({
         left: 100,
-        top: 200,
+        top: 100,
         width: 300,
         height: 300,
         fill: '#34eeeb',
+        // scaleX: 3,
         // rx: 20,
         // ry: 20,
         fontSize: 20,
         // angle: 163,
         text:
           '中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test中文test\n中文test中文test中文test中文test中文test中文test',
-        // textAlign: 'center',
-        // verticalAlign: 'middle',
+        textAlign: 'center',
+        verticalAlign: 'middle',
         fontFamily: 'Ubuntu',
         // fontWeight: 'bold',
         // fontStyle: 'italic',
@@ -91,7 +92,6 @@ function Demo7() {
         },
       });
 
-      console.log('editableTextShape', editableTextShape);
       canvas.add(editableTextShape);
       canvas.add(editableTextShape2);
 
@@ -100,6 +100,7 @@ function Demo7() {
       // });
       // canvas.add(group);
 
+      // canvas.setZoom(1.5);
       canvas.renderAll();
     }
   }, []);
@@ -117,15 +118,15 @@ function Demo7() {
   };
 
   const handleAddAngle = () => {
-    const angle = editableTextShape2.get('angle');
-    editableTextShape2.rotate(angle + 30);
+    const angle = editableTextShape.get('angle');
+    editableTextShape.rotate(angle + 30);
     setAngle(angle + 30);
     canvas.renderAll();
   };
 
   const handleSubtractAngle = () => {
-    const angle = editableTextShape2.get('angle');
-    editableTextShape2.rotate(angle - 30);
+    const angle = editableTextShape.get('angle');
+    editableTextShape.rotate(angle - 30);
     setAngle(angle - 30);
     canvas.renderAll();
   };
