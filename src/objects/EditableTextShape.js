@@ -2009,6 +2009,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       position = this.selectionStart;
     }
 
+    // console.log('position', position);
+
     var left = this._getLeftOffset(),
       top = this._getTopOffset(),
       offsets = this._getCursorBoundariesOffsets(position);
@@ -2060,6 +2062,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param {CanvasRenderingContext2D} ctx transformed context to draw on
    */
   renderCursor: function (boundaries, ctx) {
+    this._resetCtxScaleForTextRender(ctx);
+
     var cursorLocation = this.get2DCursorLocation(),
       lineIndex = cursorLocation.lineIndex,
       charIndex = cursorLocation.charIndex > 0 ? cursorLocation.charIndex - 1 : 0,
@@ -2069,9 +2073,15 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       topOffset = boundaries.topOffset,
       dy = this.getValueOfPropertyAt(lineIndex, charIndex, 'deltaY');
 
+    // console.log('ctx', ctx.getTransform());
+    // console.log('==== topOffset', topOffset);
+    // console.log('boundaries', boundaries);
+
     topOffset +=
       ((1 - this._fontSizeFraction) * this.getHeightOfLine(lineIndex)) / this.lineHeight -
       charHeight * (1 - this._fontSizeFraction);
+
+    // console.log('@@@@@@@@@@@ topOffset', topOffset);
 
     if (this.inCompositionMode) {
       this.renderSelection(boundaries, ctx);
@@ -3375,6 +3385,8 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       line,
       topOffset = this.height / 2 + this._getTopOffset();
 
+    // console.log('mouseOffset', mouseOffset);
+
     for (var i = 0, len = this._textLines.length; i < len; i++) {
       if (height <= mouseOffset.y - topOffset) {
         height += this.getHeightOfLine(i) * this.scaleY;
@@ -4523,14 +4535,14 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * Get object actual width
    */
   _getActualWidth: function () {
-    return this.getTotalObjectScaling().scaleX * this.width;
+    return this.getObjectScaling().scaleX * this.width;
   },
 
   /**
    * Get object actual height
    */
   _getActualHeight: function () {
-    return this.getTotalObjectScaling().scaleY * this.height;
+    return this.getObjectScaling().scaleY * this.height;
   },
 
   /**
@@ -4539,12 +4551,13 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   _resetCtxScaleForTextRender: function (ctx) {
     const transform = ctx.getTransform();
+    const zoom = this.canvas.getZoom();
     const radians = fabric.util.degreesToRadians(
       this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
     );
     const scaleX = this.objectCaching ? transform.a : transform.a / Math.cos(radians);
     const scaleY = this.objectCaching ? transform.d : transform.d / Math.cos(radians);
-    ctx.scale(1 / scaleX, 1 / scaleY);
+    ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
   },
 });
 
