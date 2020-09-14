@@ -2009,8 +2009,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       position = this.selectionStart;
     }
 
-    // console.log('position', position);
-
     var left = this._getLeftOffset(),
       top = this._getTopOffset(),
       offsets = this._getCursorBoundariesOffsets(position);
@@ -2068,20 +2066,14 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       lineIndex = cursorLocation.lineIndex,
       charIndex = cursorLocation.charIndex > 0 ? cursorLocation.charIndex - 1 : 0,
       charHeight = this.getValueOfPropertyAt(lineIndex, charIndex, 'fontSize'),
-      multiplier = this.scaleX * this.canvas.getZoom(),
+      multiplier = this.canvas.getZoom(),
       cursorWidth = this.cursorWidth / multiplier,
       topOffset = boundaries.topOffset,
       dy = this.getValueOfPropertyAt(lineIndex, charIndex, 'deltaY');
 
-    // console.log('ctx', ctx.getTransform());
-    // console.log('==== topOffset', topOffset);
-    // console.log('boundaries', boundaries);
-
     topOffset +=
       ((1 - this._fontSizeFraction) * this.getHeightOfLine(lineIndex)) / this.lineHeight -
       charHeight * (1 - this._fontSizeFraction);
-
-    // console.log('@@@@@@@@@@@ topOffset', topOffset);
 
     if (this.inCompositionMode) {
       this.renderSelection(boundaries, ctx);
@@ -3383,13 +3375,11 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       lineIndex = 0,
       lineLeftOffset,
       line,
-      topOffset = this.height / 2 + this._getTopOffset();
-
-    // console.log('mouseOffset', mouseOffset);
+      topOffset = this._getActualHeight() / 2 + this._getTopOffset();
 
     for (var i = 0, len = this._textLines.length; i < len; i++) {
       if (height <= mouseOffset.y - topOffset) {
-        height += this.getHeightOfLine(i) * this.scaleY;
+        height += this.getHeightOfLine(i);
         lineIndex = i;
         if (i > 0) {
           charIndex += this._textLines[i - 1].length + this.missingNewlineOffset(i - 1);
@@ -3399,12 +3389,12 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       }
     }
     lineLeftOffset = this._getLineLeftOffset(lineIndex);
-    width = lineLeftOffset * this.scaleX;
+    width = lineLeftOffset;
     line = this._textLines[lineIndex];
     for (var j = 0, jlen = line.length; j < jlen; j++) {
       prevWidth = width;
       // i removed something about flipX here, check.
-      width += this.__charBounds[lineIndex][j].kernedWidth * this.scaleX;
+      width += this.__charBounds[lineIndex][j].kernedWidth;
       if (width <= mouseOffset.x) {
         charIndex++;
       } else {

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { fabric } from 'fabric';
+import { max } from 'lodash';
 
 import ECanvas from '../../objects/ECanvas';
 import EditableTextShape from '../../objects/EditableTextShape';
@@ -15,7 +16,10 @@ let editableTextShape2;
 
 function Demo7() {
   const canvasEl = useRef(null);
-  const [angle, setAngle] = useState();
+  const [angle, setAngle] = useState(0);
+  const [zoom, setZoom] = useState(1);
+  const [scaleX, setScaleX] = useState(1);
+  const [scaleY, setScaleY] = useState(1);
 
   useEffect(() => {
     if (canvasEl.current) {
@@ -28,6 +32,28 @@ function Demo7() {
 
       canvas = new fabric.Canvas(canvasEl.current, canvasOptions);
       window.ecanvas = canvas;
+
+      canvas.on('after:render', () => {
+        const newZoom = canvas.getZoom();
+        if (newZoom !== zoom) {
+          setZoom(newZoom);
+        }
+
+        const newScaleX = editableTextShape.get('scaleX');
+        if (newScaleX !== scaleX) {
+          setScaleX(newScaleX);
+        }
+
+        const newScaleY = editableTextShape.get('scaleY');
+        if (newScaleY !== scaleY) {
+          setScaleY(newScaleY);
+        }
+
+        const newAngle = editableTextShape.get('angle');
+        if (newAngle !== angle) {
+          setAngle(newAngle);
+        }
+      });
 
       editableTextShape = new EditableTextShape({
         left: 100,
@@ -51,7 +77,7 @@ function Demo7() {
         borderColor: '#f94eff',
         stroke: '#feff5b',
         strokeWidth: 0,
-        // strokeDashArray: [10, 5],
+        // strokeDashArray:   [10, 5],
         // selectable:false,
         // overline: true,
         // linethrough: true,
@@ -63,82 +89,95 @@ function Demo7() {
         },
       });
 
-      editableTextShape2 = new EditableTextShape({
-        type: '=========',
-        left: 500,
-        top: 100,
-        width: 300,
-        height: 300,
-        fill: '#34eeeb',
-        fontSize: 20,
-        // angle: 30,
-        text: '222222222222222222222222222',
-        // textAlign: 'center',
-        // verticalAlign: 'middle',
-        fontFamily: 'Ubuntu',
-        // fontWeight: 'bold',
-        // fontStyle: 'italic',
-        underline: true,
-        borderColor: '#f94eff',
-        stroke: '#feff5b',
-        strokeWidth: 0,
-        // strokeDashArray: [10, 5],
-        // selectable:false,
-        // overline: true,
-        // linethrough: true,
-        // objectCaching: true,
-        textStyle: {
-          fill: 'red',
-        },
-      });
+      // editableTextShape2 = new EditableTextShape({
+      //   type: '=========',
+      //   left: 500,
+      //   top: 100,
+      //   width: 300,
+      //   height: 300,
+      //   fill: '#34eeeb',
+      //   fontSize: 20,
+      //   // angle: 30,
+      //   text: '222222222222222222222222222',
+      //   // textAlign: 'center',
+      //   // verticalAlign: 'middle',
+      //   fontFamily: 'Ubuntu',
+      //   // fontWeight: 'bold',
+      //   // fontStyle: 'italic',
+      //   underline: true,
+      //   borderColor: '#f94eff',
+      //   stroke: '#feff5b',
+      //   strokeWidth: 0,
+      //   // strokeDashArray: [10, 5],
+      //   // selectable:false,
+      //   // overline: true,
+      //   // linethrough: true,
+      //   // objectCaching: true,
+      //   textStyle: {
+      //     fill: 'red',
+      //   },
+      // });
 
       canvas.add(editableTextShape);
-      canvas.add(editableTextShape2);
+      // canvas.add(editableTextShape2);
 
       // const group = new fabric.Group([editableTextShape, editableTextShape2], {
       //   objectCaching: false, // group must set objectCaching false
       // });
       // canvas.add(group);
 
-      // canvas.setZoom(1.5);
+      canvas.setZoom(1.5);
       canvas.renderAll();
     }
   }, []);
 
-  const handleAddScale = () => {
+  const handleAddScaleX = () => {
     editableTextShape.set('scaleX', 3);
     // editableTextShape2.set('scaleX', 3);
     canvas.renderAll();
   };
 
+  const handleAddScaleY = () => {
+    editableTextShape.set('scaleY', 3);
+    // editableTextShape2.set('scaleY', 3);
+    canvas.renderAll();
+  };
+
   const handleZoomOut = () => {
     const zoom = canvas.getZoom();
-    console.log('zoom', zoom);
     canvas.setZoom(zoom + 1);
+  };
+
+  const handleZoomIn = () => {
+    const zoom = canvas.getZoom();
+    canvas.setZoom(max([1, zoom - 1]));
   };
 
   const handleAddAngle = () => {
     const angle = editableTextShape.get('angle');
     editableTextShape.rotate(angle + 30);
-    setAngle(angle + 30);
     canvas.renderAll();
   };
 
   const handleSubtractAngle = () => {
     const angle = editableTextShape.get('angle');
     editableTextShape.rotate(angle - 30);
-    setAngle(angle - 30);
     canvas.renderAll();
   };
 
   return (
     <>
       <StyledCanvas ref={canvasEl} id={'canvas'} />
-      <button onClick={handleAddScale}>+ scale</button>
-      <button onClick={handleZoomOut}>+ zoom</button>
+      <button onClick={handleAddScaleX}>scaleX * 3</button>
+      <button onClick={handleAddScaleY}>scaleY * 3</button>
+      <button onClick={handleZoomOut}>+1 zoom</button>
+      <button onClick={handleZoomIn}>-1 zoom</button>
       <button onClick={handleAddAngle}>+ 30°</button>
       <button onClick={handleSubtractAngle}>- 30°</button>
       <p>角度：{angle}</p>
+      <p>缩放：{zoom}</p>
+      <p>scaleX：{scaleX}</p>
+      <p>scaleY：{scaleY}</p>
     </>
   );
 }
