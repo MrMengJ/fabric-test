@@ -319,15 +319,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   MIN_TEXT_WIDTH: 2,
 
   /**
-   * When true, objects use center point as the origin of scale transformation.
-   * <b>Backwards incompatibility note:</b> This property replaces "centerTransform" (Boolean).
-   * @since 1.3.4
-   * @type Boolean
-   * @default
-   */
-  centeredScaling: true,
-
-  /**
    * When `true`, object is cached on an additional canvas.
    * When `false`, object is not cached unless necessary ( clipPath )
    * default to true
