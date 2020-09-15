@@ -1,4 +1,5 @@
 import { fabric } from 'fabric';
+import { forEach } from 'lodash';
 
 var min = fabric.util.array.min,
   max = fabric.util.array.max;
@@ -15,9 +16,19 @@ const EGroup = fabric.util.createClass(fabric.Object, fabric.Collection, {
   /**
    * Indicates if click, mouseover, mouseout events & hoverCursor should also check for subtargets
    * @type Boolean
-   * @default
+   * @default true
    */
-  subTargetCheck: false,
+  subTargetCheck: true,
+
+  /**
+   * When `true`, object is cached on an additional canvas.
+   * When `false`, object is not cached unless necessary ( clipPath )
+   * default to true
+   * @since 1.7.0
+   * @type Boolean
+   * @default false
+   */
+  objectCaching: false,
 
   /**
    * Groups are container, do not render anything on theyr own, ence no cache properties
@@ -77,6 +88,9 @@ const EGroup = fabric.util.createClass(fabric.Object, fabric.Collection, {
     }
 
     this.setCoords();
+
+    this.initAddedHandler();
+    this.initRemovedHandler();
   },
 
   /**
@@ -537,6 +551,67 @@ const EGroup = fabric.util.createClass(fabric.Object, fabric.Collection, {
     return this._createBaseClipPathSVGMarkup(svgString, { reviver: reviver });
   },
   /* _TO_SVG_END_ */
+
+  // custom added
+
+  /**
+   * onDeselect subObjects
+   */
+  onDeselect: function () {
+    if (this.getObjects) {
+      const subObjects = this.getObjects();
+      forEach(subObjects, (item) => {
+        item.onDeselect();
+      });
+    }
+  },
+
+  /**
+   * remove canvas event to manage exiting on other instances
+   * @private
+   */
+  _removeCanvasHandlers: function (canvas) {
+    canvas.off('mouse:up', canvas._mouseUpITextHandler);
+  },
+
+  /**
+   * Initializes "added" event handler
+   */
+  initAddedHandler: function () {
+    var _this = this;
+    this.on('added', function () {
+      const subObjects = this.getObjects();
+      var canvas = _this.canvas;
+      if (canvas) {
+        forEach(subObjects, (item) => {
+          if (!canvas._hasITextHandlers) {
+            canvas._hasITextHandlers = true;
+            item._initCanvasHandlers(canvas);
+          }
+          canvas._iTextInstances = canvas._iTextInstances || [];
+          canvas._iTextInstances.push(item);
+        });
+      }
+    });
+  },
+
+  initRemovedHandler: function () {
+    var _this = this;
+    this.on('removed', function () {
+      const subObjects = this.getObjects();
+      var canvas = _this.canvas;
+      if (canvas) {
+        forEach(subObjects, (item) => {
+          canvas._iTextInstances = canvas._iTextInstances || [];
+          fabric.util.removeFromArray(canvas._iTextInstances, item);
+          if (canvas._iTextInstances.length === 0) {
+            canvas._hasITextHandlers = false;
+            _this._removeCanvasHandlers(canvas);
+          }
+        });
+      }
+    });
+  },
 });
 
 /**

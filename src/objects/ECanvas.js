@@ -1,5 +1,7 @@
 import { fabric } from 'fabric';
 
+import EGroup from './EGroup';
+
 // canvas.class.js
 var getPointer = fabric.util.getPointer,
   degreesToRadians = fabric.util.degreesToRadians,
@@ -876,7 +878,7 @@ const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
         : pointer;
       if (this._checkTarget(pointerToUse, objToCheck, pointer)) {
         target = objects[i];
-        if (target.subTargetCheck && target instanceof fabric.Group) {
+        if (target.subTargetCheck && target instanceof EGroup) {
           subTarget = this._searchPossibleTargets(target._objects, pointer);
           subTarget && this.targets.push(subTarget);
         }
