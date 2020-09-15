@@ -1,6 +1,7 @@
 import { fabric } from 'fabric';
 
 import EGroup from './EGroup';
+import ActiveSelection from './ActiveSelection';
 
 // canvas.class.js
 var getPointer = fabric.util.getPointer,
@@ -2623,8 +2624,9 @@ const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
         ? [this._activeObject, target]
         : [target, this._activeObject];
     this._activeObject.isEditing && this._activeObject.exitEditing();
-    return new fabric.ActiveSelection(groupObjects, {
+    return new ActiveSelection(groupObjects, {
       canvas: this,
+      subTargetCheck: true,
     });
   },
 
@@ -2640,8 +2642,9 @@ const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
     if (group.length === 1) {
       this.setActiveObject(group[0], e);
     } else if (group.length > 1) {
-      aGroup = new fabric.ActiveSelection(group.reverse(), {
+      aGroup = new ActiveSelection(group.reverse(), {
         canvas: this,
+        subTargetCheck: true,
       });
       this.setActiveObject(aGroup, e);
     }

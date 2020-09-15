@@ -639,7 +639,7 @@ EGroup.fromObject = function (object, callback) {
       var options = fabric.util.object.clone(object, true);
       options.clipPath = enlivedClipPath[0];
       delete options.objects;
-      callback && callback(new fabric.Group(enlivenedObjects, options, true));
+      callback && callback(EGroup(enlivenedObjects, options, true));
     });
   });
 };
