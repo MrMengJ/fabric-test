@@ -3221,9 +3221,11 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    */
   doubleClickHandler: function (options) {
     if (!this.isEditing) {
-      return;
+      this.enterEditing(options.e);
     }
-    this.selectWord(this.getSelectionStartFromPointer(options.e));
+    if (this.isEditing) {
+      this.selectAll();
+    }
   },
 
   /**
@@ -3330,7 +3332,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     if (this.__lastSelected && !this.__corner) {
       this.selected = false;
       this.__lastSelected = false;
-      this.enterEditing(options.e);
       if (this.selectionStart === this.selectionEnd) {
         this.initDelayedCursor(true);
       } else {
