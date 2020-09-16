@@ -10,22 +10,8 @@ const defaultTextStyle = {
   fill: '#000',
 };
 
-const EditableTextShape = fabric.util.createClass(fabric.Object, {
-  type: 'editableTextShape',
-
-  /**
-   * Horizontal border radius
-   * @type Number
-   * @default
-   */
-  rx: 0,
-
-  /**
-   * Vertical border radius
-   * @type Number
-   * @default
-   */
-  ry: 0,
+const Text = fabric.util.createClass(fabric.Object, {
+  type: 'Text',
 
   /**
    * Properties which when set cause object to change dimensions
@@ -329,15 +315,208 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   objectCaching: false,
 
   /**
+   * Index where text selection starts (or where cursor is when there is no selection)
+   * @type Number
+   * @default
+   */
+  selectionStart: 0,
+
+  /**
+   * Index where text selection ends
+   * @type Number
+   * @default
+   */
+  selectionEnd: 0,
+
+  /**
+   * Color of text selection
+   * @type String
+   * @default
+   */
+  selectionColor: 'rgba(17,119,255,0.3)',
+
+  /**
+   * Indicates whether text is in editing mode
+   * @type Boolean
+   * @default
+   */
+  isEditing: false,
+
+  /**
+   * Indicates whether a text can be edited
+   * @type Boolean
+   * @default
+   */
+  editable: true,
+
+  /**
+   * Border color of text object while it's in editing mode
+   * @type String
+   * @default
+   */
+  editingBorderColor: 'rgba(102,153,255,0.25)',
+
+  /**
+   * Width of cursor (in px)
+   * @type Number
+   * @default
+   */
+  cursorWidth: 2,
+
+  /**
+   * Color of text cursor color in editing mode.
+   * if not set (default) will take color from the text.
+   * if set to a color value that fabric can understand, it will
+   * be used instead of the color of the text at the current position.
+   * @type String
+   * @default
+   */
+  cursorColor: '',
+
+  /**
+   * Delay between cursor blink (in ms)
+   * @type Number
+   * @default
+   */
+  cursorDelay: 1000,
+
+  /**
+   * Duration of cursor fadein (in ms)
+   * @type Number
+   * @default
+   */
+  cursorDuration: 600,
+
+  /**
+   * Indicates whether internal text char widths can be cached
+   * @type Boolean
+   * @default
+   */
+  caching: true,
+
+  /**
+   * @private
+   */
+  _reSpace: /\s|\n/,
+
+  /**
+   * @private
+   */
+  _currentCursorOpacity: 0,
+
+  /**
+   * @private
+   */
+  _selectionDirection: null,
+
+  /**
+   * @private
+   */
+  _abortCursorAnimation: false,
+
+  /**
+   * @private
+   */
+  __widthOfSpace: [],
+
+  /**
+   * Helps determining when the text is in composition, so that the cursor
+   * rendering is altered.
+   */
+  inCompositionMode: false,
+
+  /**
+   * For functionalities on keyDown
+   * Map a special key to a function of the instance/prototype
+   * If you need different behaviour for ESC or TAB or arrows, you have to change
+   * this map setting the name of a function that you build on the fabric.Itext or
+   * your prototype.
+   * the map change will affect all Instances unless you need for only some text Instances
+   * in that case you have to clone this object and assign your Instance.
+   * this.keysMap = fabric.util.object.clone(this.keysMap);
+   * The function must be in fabric.Itext.prototype.myFunction And will receive event as args[0]
+   */
+  keysMap: {
+    9: 'exitEditing',
+    27: 'exitEditing',
+    33: 'moveCursorUp',
+    34: 'moveCursorDown',
+    35: 'moveCursorRight',
+    36: 'moveCursorLeft',
+    37: 'moveCursorLeft',
+    38: 'moveCursorUp',
+    39: 'moveCursorRight',
+    40: 'moveCursorDown',
+  },
+
+  /**
+   * For functionalities on keyUp + ctrl || cmd
+   */
+  ctrlKeysMapUp: {
+    67: 'copy',
+    88: 'cut',
+  },
+
+  /**
+   * For functionalities on keyDown + ctrl || cmd
+   */
+  ctrlKeysMapDown: {
+    65: 'selectAll',
+  },
+
+  /**
+   * Minimum width of textbox, in pixels.
+   * @type Number
+   * @default
+   */
+  minWidth: 20,
+
+  /**
+   * Minimum calculated width of a textbox, in pixels.
+   * fixed to 2 so that an empty textbox cannot go to 0
+   * and is still selectable without text.
+   * @type Number
+   * @default
+   */
+  dynamicMinWidth: 2,
+
+  /**
+   * Cached array of text wrapping.
+   * @type Array
+   */
+  __cachedLines: null,
+
+  /**
+   * Override standard Object class values
+   */
+  lockScalingFlip: true,
+
+  /**
+   * Override standard Object class values
+   * Textbox needs this on false
+   */
+  noScaleCache: false,
+
+  /**
+   * Use this regular expression to split strings in breakable lines
+   * @private
+   */
+  _wordJoiners: /[ \t\r]/,
+
+  /**
+   * Use this boolean property in order to split strings that have no white space concept.
+   * this is a cheap way to help with chinese/japaense
+   * @type Boolean
+   * @since 2.6.0
+   */
+  splitByGrapheme: true,
+
+  /**
    * Constructor
    * @param {Object} [options] Options object
-   * @return {EditableTextShape} thisArg
+   * @return {Text} thisArg
    */
   initialize: function (options = {}) {
-    // rect
-    this._initRxRy();
-
-    // text
     this.textStyle = options
       ? { ...defaultTextStyle, ...options.textStyle }
       : this.textStyle;
@@ -352,26 +531,12 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * Initializes rx/ry attributes
-   * @private
-   */
-  _initRxRy: function () {
-    if (this.rx && !this.ry) {
-      this.ry = this.rx;
-    } else if (this.ry && !this.rx) {
-      this.rx = this.ry;
-    }
-  },
-
-  /**
    * Renders text instance on a specified context
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
   render: function (ctx) {
-    // IText
     this.clearContextTop();
 
-    // Text
     // do not render if object is not visible
     if (!this.visible) {
       return;
@@ -384,7 +549,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     }
     this.callSuper('render', ctx);
 
-    // IText
     // clear the cursorOffsetCache, so we ensure to calculate once per renderCursor
     // the correct position but not at every cursor animation.
     this.cursorOffsetCache = {};
@@ -396,37 +560,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
   _render: function (ctx) {
-    // render rect
-    var rx = this.rx ? Math.min(this.rx, this.width / 2) : 0,
-      ry = this.ry ? Math.min(this.ry, this.height / 2) : 0,
-      w = this.width,
-      h = this.height,
-      x = -this.width / 2,
-      y = -this.height / 2,
-      isRounded = rx !== 0 || ry !== 0,
-      /* "magic number" for bezier approximations of arcs (http://itc.ktu.lt/itc354/Riskus354.pdf) */
-      k = 1 - 0.5522847498;
-    ctx.beginPath();
-
-    ctx.moveTo(x + rx, y);
-
-    ctx.lineTo(x + w - rx, y);
-    isRounded && ctx.bezierCurveTo(x + w - k * rx, y, x + w, y + k * ry, x + w, y + ry);
-
-    ctx.lineTo(x + w, y + h - ry);
-    isRounded &&
-      ctx.bezierCurveTo(x + w, y + h - k * ry, x + w - k * rx, y + h, x + w - rx, y + h);
-
-    ctx.lineTo(x + rx, y + h);
-    isRounded && ctx.bezierCurveTo(x + k * rx, y + h, x, y + h - k * ry, x, y + h - ry);
-
-    ctx.lineTo(x, y + ry);
-    isRounded && ctx.bezierCurveTo(x, y + k * ry, x + k * rx, y, x + rx, y);
-
-    ctx.closePath();
-
-    this._renderPaintInOrder(ctx);
-
     // initDimensions
     this.initDimensions();
 
@@ -449,24 +582,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * @private
-   * @param {CanvasRenderingContext2D} ctx Context to render on
-   */
-  _renderDashedStroke: function (ctx) {
-    var x = -this.width / 2,
-      y = -this.height / 2,
-      w = this.width,
-      h = this.height;
-
-    ctx.beginPath();
-    fabric.util.drawDashedLine(ctx, x, y, x + w, y, this.strokeDashArray);
-    fabric.util.drawDashedLine(ctx, x + w, y, x + w, y + h, this.strokeDashArray);
-    fabric.util.drawDashedLine(ctx, x + w, y + h, x, y + h, this.strokeDashArray);
-    fabric.util.drawDashedLine(ctx, x, y + h, x, y, this.strokeDashArray);
-    ctx.closePath();
-  },
-
-  /**
    * Returns object representation of an instance
    * @param {Array} [propertiesToInclude] Any properties that you might want to additionally include in the output
    * @return {Object} object representation of an instance
@@ -484,8 +599,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
       'linethrough',
       'textAlign',
       'charSpacing',
-      'rx',
-      'ry',
       'minWidth',
       'splitByGrapheme',
     ].concat(propertiesToInclude);
@@ -806,7 +919,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   _getFontDeclaration: function (styleObject, forMeasuring) {
     var style = styleObject || this,
       family = this.fontFamily,
-      fontIsGeneric = EditableTextShape.genericFonts.indexOf(family.toLowerCase()) > -1;
+      fontIsGeneric = Text.genericFonts.indexOf(family.toLowerCase()) > -1;
     var fontFamily =
       family === undefined ||
       family.indexOf("'") > -1 ||
@@ -1801,118 +1914,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   _deleteLineStyle: function (lineIndex) {
     delete this.textStyles[lineIndex];
   },
-
-  // IText
-  /**
-   * Index where text selection starts (or where cursor is when there is no selection)
-   * @type Number
-   * @default
-   */
-  selectionStart: 0,
-
-  /**
-   * Index where text selection ends
-   * @type Number
-   * @default
-   */
-  selectionEnd: 0,
-
-  /**
-   * Color of text selection
-   * @type String
-   * @default
-   */
-  selectionColor: 'rgba(17,119,255,0.3)',
-
-  /**
-   * Indicates whether text is in editing mode
-   * @type Boolean
-   * @default
-   */
-  isEditing: false,
-
-  /**
-   * Indicates whether a text can be edited
-   * @type Boolean
-   * @default
-   */
-  editable: true,
-
-  /**
-   * Border color of text object while it's in editing mode
-   * @type String
-   * @default
-   */
-  editingBorderColor: 'rgba(102,153,255,0.25)',
-
-  /**
-   * Width of cursor (in px)
-   * @type Number
-   * @default
-   */
-  cursorWidth: 2,
-
-  /**
-   * Color of text cursor color in editing mode.
-   * if not set (default) will take color from the text.
-   * if set to a color value that fabric can understand, it will
-   * be used instead of the color of the text at the current position.
-   * @type String
-   * @default
-   */
-  cursorColor: '',
-
-  /**
-   * Delay between cursor blink (in ms)
-   * @type Number
-   * @default
-   */
-  cursorDelay: 1000,
-
-  /**
-   * Duration of cursor fadein (in ms)
-   * @type Number
-   * @default
-   */
-  cursorDuration: 600,
-
-  /**
-   * Indicates whether internal text char widths can be cached
-   * @type Boolean
-   * @default
-   */
-  caching: true,
-
-  /**
-   * @private
-   */
-  _reSpace: /\s|\n/,
-
-  /**
-   * @private
-   */
-  _currentCursorOpacity: 0,
-
-  /**
-   * @private
-   */
-  _selectionDirection: null,
-
-  /**
-   * @private
-   */
-  _abortCursorAnimation: false,
-
-  /**
-   * @private
-   */
-  __widthOfSpace: [],
-
-  /**
-   * Helps determining when the text is in composition, so that the cursor
-   * rendering is altered.
-   */
-  inCompositionMode: false,
 
   /**
    * Sets selection start (left boundary of a selection)
@@ -3495,45 +3496,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     }
   },
 
-  /**
-   * For functionalities on keyDown
-   * Map a special key to a function of the instance/prototype
-   * If you need different behaviour for ESC or TAB or arrows, you have to change
-   * this map setting the name of a function that you build on the fabric.Itext or
-   * your prototype.
-   * the map change will affect all Instances unless you need for only some text Instances
-   * in that case you have to clone this object and assign your Instance.
-   * this.keysMap = fabric.util.object.clone(this.keysMap);
-   * The function must be in fabric.Itext.prototype.myFunction And will receive event as args[0]
-   */
-  keysMap: {
-    9: 'exitEditing',
-    27: 'exitEditing',
-    33: 'moveCursorUp',
-    34: 'moveCursorDown',
-    35: 'moveCursorRight',
-    36: 'moveCursorLeft',
-    37: 'moveCursorLeft',
-    38: 'moveCursorUp',
-    39: 'moveCursorRight',
-    40: 'moveCursorDown',
-  },
-
-  /**
-   * For functionalities on keyUp + ctrl || cmd
-   */
-  ctrlKeysMapUp: {
-    67: 'copy',
-    88: 'cut',
-  },
-
-  /**
-   * For functionalities on keyDown + ctrl || cmd
-   */
-  ctrlKeysMapDown: {
-    65: 'selectAll',
-  },
-
   onClick: function () {
     // No need to trigger click event here, focus is enough to have the keyboard appear on Android
     this.hiddenTextarea && this.hiddenTextarea.focus();
@@ -4164,54 +4126,6 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     return shouldClear;
   },
 
-  // Textbox
-  /**
-   * Minimum width of textbox, in pixels.
-   * @type Number
-   * @default
-   */
-  minWidth: 20,
-
-  /**
-   * Minimum calculated width of a textbox, in pixels.
-   * fixed to 2 so that an empty textbox cannot go to 0
-   * and is still selectable without text.
-   * @type Number
-   * @default
-   */
-  dynamicMinWidth: 2,
-
-  /**
-   * Cached array of text wrapping.
-   * @type Array
-   */
-  __cachedLines: null,
-
-  /**
-   * Override standard Object class values
-   */
-  lockScalingFlip: true,
-
-  /**
-   * Override standard Object class values
-   * Textbox needs this on false
-   */
-  noScaleCache: false,
-
-  /**
-   * Use this regular expression to split strings in breakable lines
-   * @private
-   */
-  _wordJoiners: /[ \t\r]/,
-
-  /**
-   * Use this boolean property in order to split strings that have no white space concept.
-   * this is a cheap way to help with chinese/japaense
-   * @type Boolean
-   * @since 2.6.0
-   */
-  splitByGrapheme: true,
-
   /**
    * Generate an object that translates the style object so that it is
    * broken up by visual lines (new lines and automatic wrapping).
@@ -4574,16 +4488,10 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 });
 
-EditableTextShape.genericFonts = [
-  'sans-serif',
-  'serif',
-  'cursive',
-  'fantasy',
-  'monospace',
-];
+Text.genericFonts = ['sans-serif', 'serif', 'cursive', 'fantasy', 'monospace'];
 
-EditableTextShape.fromObject = function (object, callback) {
-  return fabric.Object._fromObject('EditableTextShape', object, callback);
+Text.fromObject = function (object, callback) {
+  return fabric.Object._fromObject('Text', object, callback);
 };
 
-export default EditableTextShape;
+export default Text;

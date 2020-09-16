@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { fabric } from 'fabric';
 import { max } from 'lodash';
 
 import ECanvas from '../../objects/ECanvas';
-import EditableTextShape from '../../objects/EditableTextShape';
+import EGroup from '../../objects/EGroup';
+import Rect from '../../objects/Rect';
 
 const StyledCanvas = styled.canvas`
   border: 1px solid red;
@@ -30,7 +30,7 @@ function Demo7() {
         // selectionFullyContained:false
       };
 
-      canvas = new fabric.Canvas(canvasEl.current, canvasOptions);
+      canvas = new ECanvas(canvasEl.current, canvasOptions);
       window.ecanvas = canvas;
 
       canvas.on('after:render', () => {
@@ -55,7 +55,7 @@ function Demo7() {
         }
       });
 
-      editableTextShape = new EditableTextShape({
+      editableTextShape = new Rect({
         left: 100,
         top: 100,
         width: 300,
@@ -89,44 +89,44 @@ function Demo7() {
         },
       });
 
-      // editableTextShape2 = new EditableTextShape({
-      //   type: '=========',
-      //   left: 500,
-      //   top: 100,
-      //   width: 300,
-      //   height: 300,
-      //   fill: '#34eeeb',
-      //   fontSize: 20,
-      //   // angle: 30,
-      //   text: '222222222222222222222222222',
-      //   // textAlign: 'center',
-      //   // verticalAlign: 'middle',
-      //   fontFamily: 'Ubuntu',
-      //   // fontWeight: 'bold',
-      //   // fontStyle: 'italic',
-      //   underline: true,
-      //   borderColor: '#f94eff',
-      //   stroke: '#feff5b',
-      //   strokeWidth: 0,
-      //   // strokeDashArray: [10, 5],
-      //   // selectable:false,
-      //   // overline: true,
-      //   // linethrough: true,
-      //   // objectCaching: true,
-      //   textStyle: {
-      //     fill: 'red',
-      //   },
-      // });
+      editableTextShape2 = new Rect({
+        type: '=========',
+        left: 500,
+        top: 100,
+        width: 300,
+        height: 300,
+        fill: '#34eeeb',
+        fontSize: 20,
+        // angle: 30,
+        text: '222222222222222222222222222',
+        // textAlign: 'center',
+        // verticalAlign: 'middle',
+        fontFamily: 'Ubuntu',
+        // fontWeight: 'bold',
+        // fontStyle: 'italic',
+        underline: true,
+        borderColor: '#f94eff',
+        stroke: '#feff5b',
+        strokeWidth: 0,
+        // strokeDashArray: [10, 5],
+        // selectable:false,
+        // overline: true,
+        // linethrough: true,
+        // objectCaching: true,
+        textStyle: {
+          fill: 'red',
+        },
+      });
 
       canvas.add(editableTextShape);
-      // canvas.add(editableTextShape2);
+      canvas.add(editableTextShape2);
 
-      // const group = new fabric.Group([editableTextShape, editableTextShape2], {
+      // const group = new EGroup([editableTextShape, editableTextShape2], {
       //   objectCaching: false, // group must set objectCaching false
       // });
       // canvas.add(group);
 
-      canvas.setZoom(1.5);
+      // canvas.setZoom(1.5);
       canvas.renderAll();
     }
   }, []);
