@@ -4539,17 +4539,49 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
+   * Get ctx transform
+   * @param ctx
+   */
+  _getCurrentCtxTransform: function (ctx) {
+    if (ctx.getTransform) {
+      const transform = ctx.getTransform();
+      return {
+        scaleX: transform.a,
+        skewX: transform.b,
+        skewY: transform.c,
+        scaleY: transform.d,
+        translateX: transform.e,
+        translateY: transform.f,
+      };
+    }
+    const zoom = this.canvas.getZoom();
+    const transformMatrix = this.calcTransformMatrix();
+    return {
+      scaleX: transformMatrix[0] * zoom,
+      skewX: transformMatrix[1] * zoom,
+      skewY: transformMatrix[2] * zoom,
+      scaleY: transformMatrix[3] * zoom,
+      translateX: transformMatrix[4] * zoom,
+      translateY: transformMatrix[5] * zoom,
+    };
+  },
+
+  /**
    * set ctx to avoid text scale
    * @param ctx
    */
   _resetCtxScaleForTextRender: function (ctx) {
-    const transform = ctx.getTransform();
+    const transform = this._getCurrentCtxTransform(ctx);
     const zoom = this.canvas.getZoom();
     const radians = fabric.util.degreesToRadians(
       this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
     );
-    const scaleX = this.objectCaching ? transform.a : transform.a / Math.cos(radians);
-    const scaleY = this.objectCaching ? transform.d : transform.d / Math.cos(radians);
+    const scaleX = this.objectCaching
+      ? transform.scaleX
+      : transform.scaleX / Math.cos(radians);
+    const scaleY = this.objectCaching
+      ? transform.scaleY
+      : transform.scaleY / Math.cos(radians);
     ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
   },
 });
