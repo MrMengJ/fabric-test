@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 import { fabric } from 'fabric';
 
-import ECanvas from '../../objects/ECanvas';
+import Canvas from '../../objects/Canvas';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;

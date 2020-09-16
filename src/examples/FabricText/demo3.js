@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { fabric } from 'fabric';
 import styled from 'styled-components';
 
-import ECanvas from '../../objects/ECanvas';
-import EGroup from '../../objects/EGroup';
+import Canvas from '../../objects/Canvas';
+import Group from '../../objects/Group';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;
@@ -48,7 +48,7 @@ function Demo3() {
         height: 700,
       };
 
-      window.canvas = new ECanvas(canvasEl.current, canvasOptions);
+      window.canvas = new Canvas(canvasEl.current, canvasOptions);
       canvas = window.canvas;
 
       const rect = new fabric.Rect({
@@ -74,7 +74,7 @@ function Demo3() {
         groupItems.forEach(function (obj) {
           canvas.remove(obj);
         });
-        let grp = new EGroup(groupItems);
+        let grp = new Group(groupItems);
         grp.on(
           'mousedown',
           fabricDblClick(grp, function () {
@@ -88,7 +88,7 @@ function Demo3() {
         canvas.renderAll();
       });
 
-      const group = new EGroup([rect, textBox], {
+      const group = new Group([rect, textBox], {
         top: 150,
         left: 200,
       });
@@ -128,7 +128,7 @@ function Demo3() {
         groupItems.forEach(function (obj) {
           canvas.remove(obj);
         });
-        let grp = new EGroup(groupItems);
+        let grp = new Group(groupItems);
         grp.on(
           'mousedown',
           fabricDblClick(grp, function () {
@@ -142,7 +142,7 @@ function Demo3() {
         canvas.renderAll();
       });
 
-      const group1 = new EGroup([rect1, textBox1], {
+      const group1 = new Group([rect1, textBox1], {
         top: 150,
         left: 600,
       });

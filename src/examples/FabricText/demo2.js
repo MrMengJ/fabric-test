@@ -3,8 +3,8 @@ import { fabric } from 'fabric';
 import styled from 'styled-components';
 import { get, filter, forEach } from 'lodash';
 
-import ECanvas from '../../objects/ECanvas';
-import EGroup from '../../objects/EGroup';
+import Canvas from '../../objects/Canvas';
+import Group from '../../objects/Group';
 
 const StyledCanvas = styled.canvas`
   width: 1000px;
@@ -25,7 +25,7 @@ function Demo2() {
         height: 700,
       };
 
-      canvas = new ECanvas(canvasEl.current, canvasOptions);
+      canvas = new Canvas(canvasEl.current, canvasOptions);
 
       const rect = new fabric.Rect({
         width: 200,
@@ -51,7 +51,7 @@ function Demo2() {
 
       canvas.add(textBox);
 
-      const group = new EGroup([rect, textBox], {
+      const group = new Group([rect, textBox], {
         top: 150,
         left: 200,
       });

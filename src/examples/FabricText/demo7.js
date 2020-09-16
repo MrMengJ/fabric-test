@@ -2,8 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
 import { max } from 'lodash';
 
-import ECanvas from '../../objects/ECanvas';
-import EGroup from '../../objects/EGroup';
+import Canvas from '../../objects/Canvas';
+import Group from '../../objects/Group';
 import Rect from '../../objects/Rect';
 
 const StyledCanvas = styled.canvas`
@@ -30,7 +30,7 @@ function Demo7() {
         // selectionFullyContained:false
       };
 
-      canvas = new ECanvas(canvasEl.current, canvasOptions);
+      canvas = new Canvas(canvasEl.current, canvasOptions);
       window.ecanvas = canvas;
 
       canvas.on('after:render', () => {
@@ -121,7 +121,7 @@ function Demo7() {
       canvas.add(editableTextShape);
       canvas.add(editableTextShape2);
 
-      // const group = new EGroup([editableTextShape, editableTextShape2], {
+      // const group = new Group([editableTextShape, editableTextShape2], {
       //   objectCaching: false, // group must set objectCaching false
       // });
       // canvas.add(group);

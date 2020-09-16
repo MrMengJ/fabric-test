@@ -2,8 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { fabric } from 'fabric';
 import styled from 'styled-components';
 
-import ECanvas from '../../objects/ECanvas';
-import EGroup from '../../objects/EGroup';
+import Canvas from '../../objects/Canvas';
+import Group from '../../objects/Group';
 import EText from '../../objects/EText';
 
 const StyledCanvas = styled.canvas`
@@ -49,7 +49,7 @@ function Demo1() {
         height: 700,
       };
 
-      window.canvas = new ECanvas(canvasEl.current, canvasOptions);
+      window.canvas = new Canvas(canvasEl.current, canvasOptions);
       canvas = window.canvas;
 
       const rect = new fabric.Rect({
@@ -79,7 +79,7 @@ function Demo1() {
         groupItems.forEach(function (obj) {
           canvas.remove(obj);
         });
-        let grp = new EGroup(groupItems);
+        let grp = new Group(groupItems);
         grp.on(
           'mousedown',
           fabricDblClick(grp, function () {
@@ -93,7 +93,7 @@ function Demo1() {
         canvas.renderAll();
       });
 
-      const group = new EGroup([rect, textBox], {
+      const group = new Group([rect, textBox], {
         top: 150,
         left: 200,
       });

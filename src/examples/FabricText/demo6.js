@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
-import ECanvas from '../../objects/ECanvas';
+import Canvas from '../../objects/Canvas';
 import LabeledRect from '../../objects/LabeledRect';
 
 const StyledCanvas = styled.canvas`
@@ -23,7 +23,7 @@ function Demo6() {
         height: 700,
       };
 
-      canvas = new ECanvas(canvasEl.current, canvasOptions);
+      canvas = new Canvas(canvasEl.current, canvasOptions);
 
       const labeledRect = new LabeledRect({
         left: 200,

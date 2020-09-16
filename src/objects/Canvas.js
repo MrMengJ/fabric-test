@@ -1,6 +1,6 @@
 import { fabric } from 'fabric';
 
-import EGroup from './EGroup';
+import Group from './Group';
 import ActiveSelection from './ActiveSelection';
 
 // canvas.class.js
@@ -31,7 +31,7 @@ var degreesToRadians = fabric.util.degreesToRadians,
 var min = Math.min,
   max = Math.max;
 
-const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
+const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   /**
    * Constructor
    * @param {HTMLElement | String} el &lt;canvas> element to initialize instance on
@@ -879,7 +879,7 @@ const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
         : pointer;
       if (this._checkTarget(pointerToUse, objToCheck, pointer)) {
         target = objects[i];
-        if (target.subTargetCheck && target instanceof EGroup) {
+        if (target.subTargetCheck && target instanceof Group) {
           subTarget = this._searchPossibleTargets(target._objects, pointer);
           subTarget && this.targets.push(subTarget);
         }
@@ -2713,8 +2713,8 @@ const ECanvas = fabric.util.createClass(fabric.StaticCanvas, {
 // where "prototype" property is enumerable and overrides existing prototype
 for (var prop in fabric.StaticCanvas) {
   if (prop !== 'prototype') {
-    ECanvas[prop] = fabric.StaticCanvas[prop];
+    Canvas[prop] = fabric.StaticCanvas[prop];
   }
 }
 
-export default ECanvas;
+export default Canvas;

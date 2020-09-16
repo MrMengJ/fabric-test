@@ -4,8 +4,8 @@ import { forEach } from 'lodash';
 var min = fabric.util.array.min,
   max = fabric.util.array.max;
 
-const EGroup = fabric.util.createClass(fabric.Object, fabric.Collection, {
-  type: 'EGroup',
+const Group = fabric.util.createClass(fabric.Object, fabric.Collection, {
+  type: 'Group',
   /**
    * Width of stroke
    * @type Number
@@ -621,7 +621,7 @@ const EGroup = fabric.util.createClass(fabric.Object, fabric.Collection, {
  * @param {Object} object Object to create a group from
  * @param {Function} [callback] Callback to invoke when an group instance is created
  */
-EGroup.fromObject = function (object, callback) {
+Group.fromObject = function (object, callback) {
   var objects = object.objects,
     options = fabric.util.object.clone(object, true);
   delete options.objects;
@@ -639,9 +639,9 @@ EGroup.fromObject = function (object, callback) {
       var options = fabric.util.object.clone(object, true);
       options.clipPath = enlivedClipPath[0];
       delete options.objects;
-      callback && callback(EGroup(enlivenedObjects, options, true));
+      callback && callback(Group(enlivenedObjects, options, true));
     });
   });
 };
 
-export default EGroup;
+export default Group;

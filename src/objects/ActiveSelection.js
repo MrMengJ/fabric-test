@@ -1,14 +1,14 @@
 import { fabric } from 'fabric';
 
-import EGroup from './EGroup';
+import Group from './Group';
 
-const ActionSelection = fabric.util.createClass(EGroup, {
+const ActionSelection = fabric.util.createClass(Group, {
   /**
    * Type of an object
    * @type String
    * @default
    */
-  type: 'activeSelection',
+  type: 'ActiveSelection',
 
   /**
    * Constructor

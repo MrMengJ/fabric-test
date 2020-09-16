@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
-import ECanvas from '../../objects/ECanvas';
+import Canvas from '../../objects/Canvas';
 import EText from '../../objects/EText';
 
 const StyledCanvas = styled.canvas`
@@ -23,7 +23,7 @@ function Demo5() {
         height: 700,
       };
 
-      canvas = new ECanvas(canvasEl.current, canvasOptions);
+      canvas = new Canvas(canvasEl.current, canvasOptions);
 
       const textBox = new EText('Test text', {
         left: 200,
