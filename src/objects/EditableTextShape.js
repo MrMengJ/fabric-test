@@ -3286,7 +3286,9 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     }
     // we want to avoid that an object that was selected and then becomes unselectable,
     // may trigger editing mode in some way.
-    this.selected = this === this.canvas._activeObject;
+    // this.selected = this === this.canvas._activeObject;
+    this.selected =
+        this === this.canvas._activeObject || this.group === this.canvas._activeObject;
   },
 
   /**
