@@ -3288,7 +3288,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
     // may trigger editing mode in some way.
     // this.selected = this === this.canvas._activeObject;
     this.selected =
-        this === this.canvas._activeObject || this.group === this.canvas._activeObject;
+      this === this.canvas._activeObject || this.group === this.canvas._activeObject;
   },
 
   /**
@@ -4539,21 +4539,9 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * Get ctx transform
-   * @param ctx
+   * Get current transform
    */
-  _getCurrentCtxTransform: function (ctx) {
-    if (ctx.getTransform) {
-      const transform = ctx.getTransform();
-      return {
-        scaleX: transform.a,
-        skewX: transform.b,
-        skewY: transform.c,
-        scaleY: transform.d,
-        translateX: transform.e,
-        translateY: transform.f,
-      };
-    }
+  _getCurrentTransform: function () {
     const zoom = this.canvas.getZoom();
     const transformMatrix = this.calcTransformMatrix();
     return {
@@ -4571,7 +4559,7 @@ const EditableTextShape = fabric.util.createClass(fabric.Object, {
    * @param ctx
    */
   _resetCtxScaleForTextRender: function (ctx) {
-    const transform = this._getCurrentCtxTransform(ctx);
+    const transform = this._getCurrentTransform();
     const zoom = this.canvas.getZoom();
     const radians = fabric.util.degreesToRadians(
       this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
