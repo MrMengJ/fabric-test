@@ -13,7 +13,6 @@ const StyledCanvas = styled.canvas`
 let canvas;
 let editableTextShape;
 let editableTextShape2;
-let activity;
 
 function Demo7() {
   const canvasEl = useRef(null);
@@ -118,28 +117,8 @@ function Demo7() {
           fill: 'red',
         },
       });
-      activity = new Activity({
-        isEditingText: false,
-        scalePercent: 1,
-        thumbnail: false,
-        readonly: false,
-        hasText: true,
-        minimal: false,
-        width: 100,
-        height: 60,
-        rx: 8,
-        ry: 8,
-        fill: '#fff',
-        stroke: '#000',
-        direction: DIRECTION.BOTTOM,
-        startColor: '#71afff',
-        endColor: '#bddaff',
-        left: 100,
-        top: 100
-      });
 
       canvas.add(editableTextShape);
-      canvas.add(activity);
       canvas.add(editableTextShape2);
 
       // const group = new Group([editableTextShape, editableTextShape2], {
