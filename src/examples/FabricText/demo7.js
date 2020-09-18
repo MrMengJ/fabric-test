@@ -13,6 +13,7 @@ const StyledCanvas = styled.canvas`
 let canvas;
 let editableTextShape;
 let editableTextShape2;
+let group;
 
 function Demo7() {
   const canvasEl = useRef(null);
@@ -39,12 +40,14 @@ function Demo7() {
           setZoom(newZoom);
         }
 
-        const newScaleX = editableTextShape.get('scaleX');
+        const {
+          scaleX: newScaleX,
+          scaleY: newScaleY,
+        } = editableTextShape.getObjectScaling();
         if (newScaleX !== scaleX) {
           setScaleX(newScaleX);
         }
 
-        const newScaleY = editableTextShape.get('scaleY');
         if (newScaleY !== scaleY) {
           setScaleY(newScaleY);
         }
@@ -121,7 +124,7 @@ function Demo7() {
       canvas.add(editableTextShape);
       canvas.add(editableTextShape2);
 
-      // const group = new Group([editableTextShape, editableTextShape2], {
+      // group = new Group([editableTextShape, editableTextShape2], {
       //   objectCaching: false, // group must set objectCaching false
       // });
       // canvas.add(group);
