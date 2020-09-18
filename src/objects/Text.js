@@ -2219,7 +2219,6 @@ const Text = fabric.util.createClass(fabric.Object, {
    */
   initAddedHandler: function () {
     var _this = this;
-    // TODO IText need rename ?
     this.on('added', function () {
       var canvas = _this.canvas;
       if (canvas) {
@@ -2235,7 +2234,6 @@ const Text = fabric.util.createClass(fabric.Object, {
 
   initRemovedHandler: function () {
     var _this = this;
-    // TODO IText need rename ?
     this.on('removed', function () {
       var canvas = _this.canvas;
       if (canvas) {
@@ -2254,7 +2252,6 @@ const Text = fabric.util.createClass(fabric.Object, {
    * @private
    */
   _initCanvasHandlers: function (canvas) {
-    // TODO IText need rename ?
     canvas._mouseUpITextHandler = function () {
       if (canvas._iTextInstances) {
         canvas._iTextInstances.forEach(function (obj) {
