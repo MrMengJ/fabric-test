@@ -2,7 +2,8 @@
 import { fabric } from 'fabric';
 import { get, max } from 'lodash';
 
-var clone = fabric.util.object.clone;
+const clone = fabric.util.object.clone;
+const degreesToRadians = fabric.util.degreesToRadians;
 
 const defaultTextStyle = {
   stroke: null,
@@ -3287,7 +3288,6 @@ const Text = fabric.util.createClass(fabric.Object, {
     }
     // we want to avoid that an object that was selected and then becomes unselectable,
     // may trigger editing mode in some way.
-    // this.selected = this === this.canvas._activeObject;
     this.selected =
       this === this.canvas._activeObject || this.group === this.canvas._activeObject;
   },
@@ -4436,6 +4436,35 @@ const Text = fabric.util.createClass(fabric.Object, {
     }
   },
 
+  // rewrite
+
+  /**
+   * Returns coordinates of a pointer relative to an object
+   * @param {Event} e Event to operate upon
+   * @param {Object} [pointer] Pointer to operate upon (instead of event)
+   * @return {Object} Coordinates of a pointer (x, y)
+   */
+  getLocalPointer: function (e, pointer) {
+    pointer = pointer || this.canvas.getPointer(e);
+    var pClicked = new fabric.Point(pointer.x, pointer.y),
+      objectLeftTop = this.group
+        ? this._getLeftTopCoordsWhenInGroup()
+        : this._getLeftTopCoords(),
+      actualAngle = this._getActualAngle();
+
+    if (actualAngle) {
+      pClicked = fabric.util.rotatePoint(
+        pClicked,
+        objectLeftTop,
+        degreesToRadians(-actualAngle)
+      );
+    }
+    return {
+      x: pClicked.x - objectLeftTop.x,
+      y: pClicked.y - objectLeftTop.y,
+    };
+  },
+
   //  custom added
 
   /**
@@ -4450,6 +4479,14 @@ const Text = fabric.util.createClass(fabric.Object, {
    */
   _getActualHeight: function () {
     return this.getObjectScaling().scaleY * this.height;
+  },
+
+  /**
+   * Get object actual angle
+   */
+  _getActualAngle: function () {
+    const { angle } = fabric.util.qrDecompose(this.calcTransformMatrix());
+    return angle;
   },
 
   /**
@@ -4475,9 +4512,7 @@ const Text = fabric.util.createClass(fabric.Object, {
   _resetCtxScaleForTextRender: function (ctx) {
     const transform = this._getCurrentTransform();
     const zoom = this.canvas.getZoom();
-    const radians = fabric.util.degreesToRadians(
-      this.group ? this.group.get('angle') + this.get('angle') : this.get('angle')
-    );
+    const radians = degreesToRadians(this._getActualAngle());
     const scaleX = this.objectCaching
       ? transform.scaleX
       : transform.scaleX / Math.cos(radians);
@@ -4485,6 +4520,61 @@ const Text = fabric.util.createClass(fabric.Object, {
       ? transform.scaleY
       : transform.scaleY / Math.cos(radians);
     ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
+  },
+
+  /**
+   * @private
+   */
+  _getLeftTopCoordsWhenInGroup: function () {
+    return this.translateToOriginPointWhenInGroup(
+      this.getCenterPointWhenInGroup(),
+      'left',
+      'top'
+    );
+  },
+
+  /**
+   * Returns the real center coordinates of the object
+   * @return {fabric.Point}
+   */
+  getCenterPointWhenInGroup: function () {
+    let leftTop = fabric.util.transformPoint(
+      { y: this.top, x: this.left },
+      this.group.calcTransformMatrix()
+    );
+    return this.translateToCenterPointWhenInGroup(leftTop, this.originX, this.originY);
+  },
+
+  /**
+   * Translates the coordinates from origin to center coordinates (based on the object's dimensions)
+   * @param {fabric.Point} point The point which corresponds to the originX and originY params
+   * @param {String} originX Horizontal origin: 'left', 'center' or 'right'
+   * @param {String} originY Vertical origin: 'top', 'center' or 'bottom'
+   * @return {fabric.Point}
+   */
+  translateToCenterPointWhenInGroup: function (point, originX, originY) {
+    var p = this.translateToGivenOrigin(point, originX, originY, 'center', 'center');
+    const actualAngle = this._getActualAngle();
+    if (actualAngle) {
+      return fabric.util.rotatePoint(p, point, degreesToRadians(actualAngle));
+    }
+    return p;
+  },
+
+  /**
+   * Translates the coordinates from center to origin coordinates (based on the object's dimensions)
+   * @param {fabric.Point} center The point which corresponds to center of the object
+   * @param {String} originX Horizontal origin: 'left', 'center' or 'right'
+   * @param {String} originY Vertical origin: 'top', 'center' or 'bottom'
+   * @return {fabric.Point}
+   */
+  translateToOriginPointWhenInGroup: function (center, originX, originY) {
+    var p = this.translateToGivenOrigin(center, 'center', 'center', originX, originY);
+    const actualAngle = this._getActualAngle();
+    if (actualAngle) {
+      return fabric.util.rotatePoint(p, center, degreesToRadians(actualAngle));
+    }
+    return p;
   },
 });
 
