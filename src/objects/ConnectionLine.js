@@ -164,16 +164,21 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     ctx.save();
     ctx.lineWidth = 12;
     ctx.strokeStyle = 'transparent';
-    ctx.beginPath();
-    ctx.moveTo(
-      this.points[0].x - this.strokeWidth / 2,
-      this.points[0].y - this.strokeWidth / 2
-    );
-    for (let i = 0; i < this.points.length; i++) {
-      let point = this.points[i];
-      ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
-    }
+    this._drawLine(ctx);
     ctx.stroke();
+    ctx.restore();
+  },
+
+  /**
+   * render connection line
+   * @private
+   * @param {CanvasRenderingContext2D} ctx Context to render on
+   */
+  _renderLine: function (ctx) {
+    ctx.save();
+    ctx.lineWidth = this.strokeWidth;
+    this._drawLine(ctx);
+    this._renderStroke(ctx);
     ctx.restore();
   },
 
@@ -201,18 +206,8 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       // do not draw if no points or single point
       return;
     }
-    ctx.lineWidth = this.strokeWidth;
-    ctx.beginPath();
-    ctx.moveTo(
-      this.points[0].x - this.strokeWidth / 2,
-      this.points[0].y - this.strokeWidth / 2
-    );
-    for (let i = 0; i < len; i++) {
-      let point = this.points[i];
-      ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
-    }
-    this._renderStroke(ctx);
 
+    this._renderLine(ctx);
     this._renderArrow(ctx);
     this._renderEasySelectableLine(ctx);
     this._renderControl(ctx);
@@ -433,6 +428,23 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       ctx.stroke();
     });
     ctx.restore();
+  },
+
+  /**
+   * draw line
+   * @private
+   * @param {CanvasRenderingContext2D} ctx Context to render on
+   */
+  _drawLine: function (ctx) {
+    ctx.beginPath();
+    ctx.moveTo(
+      this.points[0].x - this.strokeWidth / 2,
+      this.points[0].y - this.strokeWidth / 2
+    );
+    for (let i = 0; i < this.points.length; i++) {
+      let point = this.points[i];
+      ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
+    }
   },
 });
 
