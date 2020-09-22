@@ -1,5 +1,5 @@
 import { fabric } from 'fabric';
-import { forEach, head, last } from 'lodash';
+import { forEach, head, last, max } from 'lodash';
 
 const ARROW_TYPE = {
   none: 'none',
@@ -13,6 +13,8 @@ const DIRECTION = {
   top: 'top',
   bottom: 'bottom',
 };
+
+const EASY_SELECTABLE_LINE_WIDTH = 12;
 
 const ConnectionLine = fabric.util.createClass(fabric.Object, {
   type: 'ConnectionLine',
@@ -94,6 +96,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   objectCaching: false,
 
   /**
+   * When `true`, the connection is selected
+   * @type Boolean
+   * @default false
+   */
+  selected: false,
+
+  /**
    * from element point direction
    * @type string
    */
@@ -116,6 +125,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     this.points = points || [];
     this.callSuper('initialize', options);
     this._initDirection();
+    this.initBehavior();
   },
 
   _renderFromArrow: function (ctx) {
@@ -162,7 +172,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    */
   _renderEasySelectableLine: function (ctx) {
     ctx.save();
-    ctx.lineWidth = 12;
+    ctx.lineWidth = EASY_SELECTABLE_LINE_WIDTH;
     ctx.strokeStyle = 'transparent';
     this._drawLine(ctx);
     ctx.stroke();
@@ -188,11 +198,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
   _renderControl: function (ctx) {
-    ctx.save();
-    this._drawStartPoint(ctx);
-    this._drawEndPoint(ctx);
-    this._drawControlPoints(ctx);
-    ctx.restore();
+    if (this.selected) {
+      ctx.save();
+      this._drawStartPoint(ctx);
+      this._drawEndPoint(ctx);
+      this._drawControlPoints(ctx);
+      ctx.restore();
+    }
   },
 
   /**
@@ -445,6 +457,171 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       let point = this.points[i];
       ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
     }
+  },
+
+  /**
+   * Initializes all the interactive behavior
+   */
+  initBehavior: function () {
+    this._initAddedHandler();
+    this._initRemovedHandler();
+  },
+
+  /**
+   * Initializes "added" event handler
+   * @private
+   */
+  _initAddedHandler: function () {
+    const _this = this;
+    this.on('added', function () {
+      const canvas = _this.canvas;
+      if (canvas) {
+        _this._initCanvasHandlers(canvas);
+      }
+    });
+  },
+
+  /**
+   * Initializes "removed" event handler
+   * @private
+   */
+  _initRemovedHandler: function () {},
+
+  /**
+   * Initializes canvas event handler
+   */
+  _initCanvasHandlers: function (canvas) {
+    this._canvasMouseDownHandler = this._canvasMouseDownHandler.bind(this);
+    this._canvasMouseMoveHandler = this._canvasMouseMoveHandler.bind(this);
+    this._canvasMouseUpHandler = this._canvasMouseUpHandler.bind(this);
+
+    canvas.on('mouse:down', this._canvasMouseDownHandler);
+    canvas.on('mouse:move', this._canvasMouseMoveHandler);
+    canvas.on('mouse:up', this._canvasMouseUpHandler);
+  },
+
+  _canvasMouseDownHandler: function (options) {
+    const { pointer } = options;
+    if (this._linesContainsPoint(pointer)) {
+      if (!this.selected) {
+        this.set('selected', true);
+        this.canvas.requestRenderAll();
+      }
+    }
+  },
+
+  _canvasMouseMoveHandler: function (options) {
+    const { pointer } = options;
+    const line = this._linesContainsPoint(pointer);
+    if (line) {
+      if (this.canvas) {
+        const cursor = line.isHorizontal ? 's-resize' : 'e-resize';
+        this.canvas.setCursor(cursor);
+      }
+    }
+  },
+
+  _canvasMouseUpHandler: function (options) {
+    // console.log('mouseUp', options);
+  },
+
+  /**
+   * Get line paths
+   * @return {Array} the line paths
+   */
+  _getLinePathArray: function () {
+    const result = [];
+    const lineWidth = max([
+      EASY_SELECTABLE_LINE_WIDTH,
+      this.strokeWidth * this.canvas.getZoom(),
+    ]);
+    forEach(this.points, (currentOne, index) => {
+      if (index < this.points.length - 1) {
+        const nextOne = this.points[index + 1];
+        const isHorizontal = currentOne.y === nextOne.y;
+        if (isHorizontal) {
+          result.push({
+            tl: {
+              x: currentOne.x,
+              y: currentOne.y - lineWidth / 2,
+            },
+            tr: {
+              x: nextOne.x + lineWidth / 2,
+              y: nextOne.y - lineWidth / 2,
+            },
+            bl: {
+              x: currentOne.x,
+              y: currentOne.y + lineWidth / 2,
+            },
+            br: {
+              x: nextOne.x + lineWidth / 2,
+              y: nextOne.y + lineWidth / 2,
+            },
+            isHorizontal: true,
+            points: [currentOne, nextOne],
+            // x: currentOne.x,
+            // y: currentOne.x - lineWidth / 2,
+            // width: nextOne.x - currentOne.x,
+            // height: lineWidth,
+          });
+        } else {
+          result.push({
+            tl: {
+              x: currentOne.x - lineWidth / 2,
+              y: currentOne.y,
+            },
+            tr: {
+              x: currentOne.x + lineWidth / 2,
+              y: currentOne.y,
+            },
+            bl: {
+              x: nextOne.x - lineWidth / 2,
+              y: nextOne.y + lineWidth / 2,
+            },
+            br: {
+              x: nextOne.x + lineWidth / 2,
+              y: nextOne.y + lineWidth / 2,
+            },
+            isHorizontal: false,
+            points: [currentOne, nextOne],
+            // x: currentOne.x - lineWidth / 2,
+            // y: currentOne.y,
+            // width: lineWidth,
+            // height: nextOne.y - currentOne.y,
+          });
+        }
+      }
+    });
+    return result;
+  },
+
+  /**
+   * Checks if point is inside the object
+   * @param {fabric.Point} point Point to check against
+   * @param {Object} [lines] object returned from @method _getImageLines
+   * @param {Object} [coords] object corner coords
+   * @return {Boolean} true if point is inside the object
+   */
+  _containsPoint: function (point, coords, lines) {
+    const theLines = lines || this._getImageLines(coords);
+    const xPoints = this._findCrossPoints(point, theLines);
+    // if xPoints is odd then point is inside the object
+    return xPoints !== 0 && xPoints % 2 === 1;
+  },
+
+  /**
+   * Checks if point is inside the lines
+   * @return {Object} the line
+   */
+  _linesContainsPoint: function (point) {
+    let result = false;
+    forEach(this._getLinePathArray(), (item) => {
+      if (this._containsPoint(point, item)) {
+        result = item;
+        return false;
+      }
+    });
+    return result;
   },
 });
 
