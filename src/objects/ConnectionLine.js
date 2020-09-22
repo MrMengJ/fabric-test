@@ -1,5 +1,5 @@
 import { fabric } from 'fabric';
-import { head, last } from 'lodash';
+import { forEach, head, last } from 'lodash';
 
 const ARROW_TYPE = {
   none: 'none',
@@ -59,6 +59,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @default
    */
   strokeWidth: 2,
+
+  /**
+   * stroke style
+   * @type String
+   * @default
+   */
+  stroke: '#000',
 
   cacheProperties: fabric.Object.prototype.cacheProperties.concat('points'),
 
@@ -149,6 +156,41 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   },
 
   /**
+   * render translate line to make connection lien easy to select
+   * @private
+   * @param {CanvasRenderingContext2D} ctx Context to render on
+   */
+  _renderEasySelectableLine: function (ctx) {
+    ctx.save();
+    ctx.lineWidth = 12;
+    ctx.strokeStyle = 'transparent';
+    ctx.beginPath();
+    ctx.moveTo(
+      this.points[0].x - this.strokeWidth / 2,
+      this.points[0].y - this.strokeWidth / 2
+    );
+    for (let i = 0; i < this.points.length; i++) {
+      let point = this.points[i];
+      ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
+    }
+    ctx.stroke();
+    ctx.restore();
+  },
+
+  /**
+   * render control
+   * @private
+   * @param {CanvasRenderingContext2D} ctx Context to render on
+   */
+  _renderControl: function (ctx) {
+    ctx.save();
+    this._drawStartPoint(ctx);
+    this._drawEndPoint(ctx);
+    this._drawControlPoints(ctx);
+    ctx.restore();
+  },
+
+  /**
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
@@ -170,7 +212,10 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
     }
     this._renderStroke(ctx);
+
     this._renderArrow(ctx);
+    this._renderEasySelectableLine(ctx);
+    this._renderControl(ctx);
   },
 
   /**
@@ -304,6 +349,90 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     }
     this._initFromDirection();
     this._initToDirection();
+  },
+
+  /**
+   * initialize direction
+   * @private
+   * @return {Array} control points
+   */
+  _getControlPoints: function () {
+    const result = [];
+    forEach(this.points, (item, index) => {
+      if (index < this.points.length - 1) {
+        const nextOne = this.points[index + 1];
+        result[index] = {
+          x: (item.x + nextOne.x) / 2,
+          y: (item.y + nextOne.y) / 2,
+        };
+      }
+    });
+    return result;
+  },
+
+  _drawStartPoint: function (ctx) {
+    ctx.strokeStyle = '#137CBD';
+    ctx.fillStyle = '#137CBD';
+    ctx.beginPath();
+    const firstPoint = head(this.points);
+    ctx.arc(
+      firstPoint.x - this.strokeWidth / 2,
+      firstPoint.y - this.strokeWidth / 2,
+      5,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  },
+
+  _drawEndPoint: function (ctx) {
+    ctx.beginPath();
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = '#137CBD';
+    ctx.lineWidth = 2;
+    const lastPoint = last(this.points);
+    ctx.arc(
+      lastPoint.x - this.strokeWidth / 2,
+      lastPoint.y - this.strokeWidth / 2,
+      4,
+      0,
+      Math.PI * 2
+    );
+    ctx.stroke();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.fillStyle = '#137CBD';
+    ctx.lineWidth = 0;
+    ctx.arc(
+      lastPoint.x - this.strokeWidth / 2,
+      lastPoint.y - this.strokeWidth / 2,
+      2,
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+  },
+
+  _drawControlPoints: function (ctx) {
+    ctx.save();
+    const points = this._getControlPoints();
+    forEach(points, (item) => {
+      ctx.beginPath();
+      ctx.fillStyle = '#137CBD';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1;
+      ctx.arc(
+        item.x - this.strokeWidth / 2,
+        item.y - this.strokeWidth / 2,
+        5,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+      ctx.stroke();
+    });
+    ctx.restore();
   },
 });
 

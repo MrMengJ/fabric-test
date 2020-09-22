@@ -33,15 +33,15 @@ function Demo11() {
       const connectionLine = new ConnectionLine(
         [
           { x: 10, y: 10 },
-          { x: 10, y: 30 },
-          { x: 40, y: 30 },
-          { x: 40, y: 50 },
-          { x: 100, y: 50 },
-          { x: 100, y: 100 },
-          // { x: 200, y: 100 },
+          { x: 10, y: 130 },
+          { x: 140, y: 130 },
+          { x: 140, y: 250 },
+          { x: 240, y: 250 },
+          { x: 240, y: 300 },
+          { x: 300, y: 300 },
         ],
         {
-          stroke: '#e98516',
+          // stroke: '#e98516',
           arrowType: 'double-sided',
         }
       );
