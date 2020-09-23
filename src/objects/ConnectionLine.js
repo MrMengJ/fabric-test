@@ -103,6 +103,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   selected: false,
 
   /**
+   * Indicates whether the line is dragging
+   * @type Boolean
+   * @default false
+   */
+  _isDragging: false,
+
+  /**
    * from element point direction
    * @type string
    */
@@ -475,9 +482,12 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     const _this = this;
     this.on('added', function () {
       const canvas = _this.canvas;
-      if (canvas) {
+      if (canvas && !canvas._hasConnectionLineHandlers) {
+        canvas._hasConnectionLineHandlers = true;
         _this._initCanvasHandlers(canvas);
       }
+      canvas._connectionLineInstances = canvas._connectionLineInstances || [];
+      canvas._connectionLineInstances.push(_this);
     });
   },
 
@@ -485,10 +495,24 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * Initializes "removed" event handler
    * @private
    */
-  _initRemovedHandler: function () {},
+  _initRemovedHandler: function () {
+    const _this = this;
+    this.on('removed', function () {
+      const canvas = _this.canvas;
+      if (canvas) {
+        canvas._connectionLineInstances = canvas._connectionLineInstances || [];
+        fabric.util.removeFromArray(canvas._connectionLineInstances, _this);
+        if (canvas._connectionLineInstances.length === 0) {
+          canvas._hasConnectionLineHandlers = false;
+          _this._removeCanvasHandlers(canvas);
+        }
+      }
+    });
+  },
 
   /**
    * Initializes canvas event handler
+   * @private
    */
   _initCanvasHandlers: function (canvas) {
     this._canvasMouseDownHandler = this._canvasMouseDownHandler.bind(this);
@@ -500,29 +524,58 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     canvas.on('mouse:up', this._canvasMouseUpHandler);
   },
 
+  /**
+   * remove canvas event to manage exiting on other instances
+   * @private
+   */
+  _removeCanvasHandlers: function (canvas) {
+    canvas.off('mouse:down', this._canvasMouseDownHandler);
+    canvas.off('mouse:move', this._canvasMouseMoveHandler);
+    canvas.off('mouse:up', this._canvasMouseUpHandler);
+  },
+
   _canvasMouseDownHandler: function (options) {
     const { pointer } = options;
     if (this._linesContainsPoint(pointer)) {
+      this.set('_isDragging', true);
+      this.canvas._isDragConnectionLine = true;
       if (!this.selected) {
         this.set('selected', true);
+        this.canvas.requestRenderAll();
+      }
+    } else {
+      if (this.selected) {
+        this.set('selected', false);
         this.canvas.requestRenderAll();
       }
     }
   },
 
-  _canvasMouseMoveHandler: function (options) {
-    const { pointer } = options;
-    const line = this._linesContainsPoint(pointer);
-    if (line) {
-      if (this.canvas) {
-        const cursor = line.isHorizontal ? 's-resize' : 'e-resize';
-        this.canvas.setCursor(cursor);
+  /**
+   * Set line hover cursor
+   * @param [point] point of mouse coordinates
+   */
+  _setHoverCursor: function (point) {
+    if (!this._isDragging) {
+      const line = this._linesContainsPoint(point);
+      if (line) {
+        if (this.canvas) {
+          const cursor = line.isHorizontal ? 's-resize' : 'e-resize';
+          this.canvas.setCursor(cursor);
+        }
       }
     }
   },
 
+  _canvasMouseMoveHandler: function (options) {
+    this._setHoverCursor(options.pointer);
+  },
+
   _canvasMouseUpHandler: function (options) {
-    // console.log('mouseUp', options);
+    if (this._isDragging) {
+      this.set('_isDragging', false);
+      this.canvas._isDragConnectionLine = false;
+    }
   },
 
   /**

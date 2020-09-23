@@ -468,7 +468,9 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   renderTop: function () {
     var ctx = this.contextTop;
     this.clearContext(ctx);
-    this.renderTopLayer(ctx);
+    if (!this._isDragConnectionLine) {
+      this.renderTopLayer(ctx);
+    }
     this.fire('after:render');
     return this;
   },
