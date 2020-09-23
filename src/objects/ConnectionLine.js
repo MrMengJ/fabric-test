@@ -1,5 +1,5 @@
 import { fabric } from 'fabric';
-import { forEach, head, last, max } from 'lodash';
+import { forEach, head, last, max, reverse, toInteger, isNaN } from 'lodash';
 
 const ARROW_TYPE = {
   none: 'none',
@@ -15,6 +15,14 @@ const DIRECTION = {
 };
 
 const EASY_SELECTABLE_LINE_WIDTH = 12;
+
+const MIN_DISTANCE_AROUND_SHAPE = 10;
+
+const DRAGGING_OBJECT_TYPE = {
+  startPort: 'startPort',
+  endPort: 'endPort',
+  line: 'line',
+};
 
 const ConnectionLine = fabric.util.createClass(fabric.Object, {
   type: 'ConnectionLine',
@@ -113,13 +121,31 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * from element point direction
    * @type string
    */
-  _fromDirection: DIRECTION.right,
+  fromDirection: DIRECTION.right,
 
   /**
    * to element point direction
    * @type string
    */
-  _toDirection: DIRECTION.left,
+  toDirection: DIRECTION.left,
+
+  /**
+   * from element point
+   * @type Object
+   */
+  fromPoint: null,
+
+  /**
+   * to element point
+   * @type Object
+   */
+  toPoint: null,
+
+  /**
+   * dragging line or point info
+   * @type Object
+   */
+  _draggingObject: null,
 
   /**
    * Constructor
@@ -136,7 +162,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   },
 
   _renderFromArrow: function (ctx) {
-    let extensionDirection = this._getExtensionDirection(this._fromDirection);
+    let extensionDirection = this._getExtensionDirection(this.fromDirection);
     const firstPoint = head(this.points);
     const startPoint = {
       x: firstPoint.x - this.strokeWidth / 2,
@@ -146,7 +172,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   },
 
   _renderToArrow: function (ctx) {
-    let extensionDirection = this._getExtensionDirection(this._toDirection);
+    let extensionDirection = this._getExtensionDirection(this.toDirection);
     const lastPoint = last(this.points);
     const startPoint = {
       x: lastPoint.x - this.strokeWidth / 2,
@@ -219,7 +245,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
 
   /**
    * @private
-   * @param {String} direction FromDirection or _toDirection
+   * @param {String} direction FromDirection or toDirection
    * @return {String} connection line extension direction
    */
   _getExtensionDirection: function (direction) {
@@ -243,14 +269,12 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     return extensionDirection;
   },
 
-  _updateDirection: function () {},
-
   /**
    *
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
    * @param {String} extensionDirection Connection Line extension direction
-   * @param {String} startPoint Ctx begin path start point
+   * @param {Object} startPoint Ctx begin path start point
    * initialize direction
    */
   _drawArrow: function (ctx, extensionDirection, startPoint) {
@@ -290,7 +314,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @return {String} from direction
    */
   _initFromDirection: function () {
-    let fromDirection = this._fromDirection;
+    let fromDirection = this.fromDirection;
     const firstPoint = head(this.points);
     const secondPoint = this.points[1];
     const isHorizontal = secondPoint.y === firstPoint.y;
@@ -307,7 +331,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         fromDirection = DIRECTION.top;
       }
     }
-    this._fromDirection = fromDirection;
+    this.fromDirection = fromDirection;
     return fromDirection;
   },
 
@@ -317,7 +341,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @return {String} to direction
    */
   _initToDirection: function () {
-    let toDirection = this._toDirection;
+    let toDirection = this.toDirection;
     const lastPoint = last(this.points);
     const secondLastPoint = this.points[this.points.length - 2];
     const isVertical = secondLastPoint.x === lastPoint.x;
@@ -334,7 +358,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         toDirection = DIRECTION.right;
       }
     }
-    this._toDirection = toDirection;
+    this.toDirection = toDirection;
     return toDirection;
   },
 
@@ -521,16 +545,18 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
 
   _canvasMouseDownHandler: function (options) {
     const { pointer } = options;
-    if (this._linesContainsPoint(pointer)) {
-      this.set('_isDragging', true);
-      this.canvas._isDragConnectionLine = true;
+    const isDragStartPort = this._startPortContainsPoint(pointer);
+    const isDragEndPort = this._endPortContainsPoint(pointer);
+    const isDragLine = this._linesContainsPoint(pointer);
+    if (isDragStartPort || isDragEndPort || isDragLine) {
+      this._startDragging(isDragStartPort, isDragEndPort, isDragLine, pointer);
       if (!this.selected) {
-        this.set('selected', true);
+        this.selected = true;
         this.canvas.requestRenderAll();
       }
     } else {
       if (this.selected) {
-        this.set('selected', false);
+        this.selected = false;
         this.canvas.requestRenderAll();
       }
     }
@@ -538,7 +564,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
 
   /**
    * Set line hover cursor
-   * @param [point] point of mouse coordinates
+   * @param point point of mouse coordinates
    */
   _setHoverCursor: function (point) {
     if (!this._isDragging && this.canvas) {
@@ -557,12 +583,29 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
 
   _canvasMouseMoveHandler: function (options) {
     this._setHoverCursor(options.pointer);
+    if (this._isDragging) {
+      const zoom = this.canvas.getZoom();
+      const point = {
+        x: options.pointer.x / zoom,
+        y: options.pointer.y / zoom,
+      };
+      if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.startPort) {
+        this.fromPoint = point;
+        this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
+        this._updatePoints();
+      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.endPort) {
+        this.toPoint = point;
+        this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
+        this._updatePoints();
+      }
+    }
   },
 
-  _canvasMouseUpHandler: function (options) {
+  _canvasMouseUpHandler: function () {
     if (this._isDragging) {
-      this.set('_isDragging', false);
+      this._isDragging = false;
       this.canvas._isDragConnectionLine = false;
+      this._draggingObject = null;
     }
   },
 
@@ -640,8 +683,8 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   /**
    * Checks if point is inside the object
    * @param {fabric.Point} point Point to check against
+   * @param {Object} coords object corner coords
    * @param {Object} [lines] object returned from @method _getImageLines
-   * @param {Object} [coords] object corner coords
    * @return {Boolean} true if point is inside the object
    */
   _containsPoint: function (point, coords, lines) {
@@ -668,7 +711,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
 
   /**
    * Get port corner coords
-   * @param [port] port coords
+   * @param port port coords
    * @return {Object} corner coords
    */
   _getPortCornerCoords: function (port) {
@@ -718,6 +761,263 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   _endPortContainsPoint: function (point) {
     const portCornerCoords = this._getEndPortCornerCoords();
     return this._containsPoint(point, portCornerCoords);
+  },
+
+  /**
+   * Set dragging object info
+   */
+  _setDraggingObject: function (isDragStartPort, isDragEndPort, isDragLine) {
+    const result = {};
+    if (isDragStartPort) {
+      result.type = DRAGGING_OBJECT_TYPE.startPort;
+    } else if (isDragEndPort) {
+      result.type = DRAGGING_OBJECT_TYPE.endPort;
+    } else if (isDragLine) {
+      result.type = DRAGGING_OBJECT_TYPE.line;
+    }
+    this._draggingObject = result;
+  },
+
+  /**
+   * Start dragging
+   */
+  _startDragging: function (isDragStartPort, isDragEndPort, isDragLine) {
+    this._isDragging = true;
+    this.canvas._isDragConnectionLine = true;
+    this._setDraggingObject(isDragStartPort, isDragEndPort, isDragLine);
+  },
+
+  /**
+   * Get from direction or to direction
+   * @param {Object} fromPoint from point
+   * @param {String} fromDirection from direction
+   * @param {Object} toPoint to point
+   * @return {String} new direction
+   */
+  _getDirection: function (fromPoint, fromDirection, toPoint) {
+    if (
+      Math.abs(fromPoint.x - toPoint.x) <= MIN_DISTANCE_AROUND_SHAPE ||
+      Math.abs(fromPoint.y - toPoint.y) <= MIN_DISTANCE_AROUND_SHAPE
+    ) {
+      return this._reverseDirection(fromDirection);
+    } else {
+      return this._calculateDirection(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+    }
+  },
+
+  /**
+   * reverse direction
+   * @param {String} direction
+   * @return {String} new direction
+   */
+  _reverseDirection: function (direction) {
+    if (direction === DIRECTION.right) {
+      return DIRECTION.left;
+    } else if (direction === DIRECTION.left) {
+      return DIRECTION.right;
+    } else if (direction === DIRECTION.top) {
+      return DIRECTION.bottom;
+    }
+    return DIRECTION.top;
+  },
+
+  /**
+   * Calculate from direction or to direction
+   * @return {String} new direction
+   */
+  _calculateDirection: function (x1, y1, x2, y2) {
+    const degree = this._getAngle(x1, y1, x2, y2);
+
+    if (degree > 70 && degree <= 110) {
+      return DIRECTION.left;
+    } else if (degree > 110 && degree <= 250) {
+      return DIRECTION.top;
+    } else if (degree > 250 && degree <= 290) {
+      return DIRECTION.right;
+    } else if (degree <= 70 || degree > 290) {
+      return DIRECTION.bottom;
+    }
+  },
+
+  _getAngle: function (x1, y1, x2, y2) {
+    const x = x1 - x2;
+    const y = y1 - y2;
+    if (!x && !y) {
+      return 0;
+    }
+    return toInteger((90 + (Math.atan2(-y, -x) * 180) / Math.PI + 360) % 360);
+  },
+
+  /**
+   * Create manhattan route
+   * @param {Object} fromPoint
+   * @param {String} fromDirection
+   * @param {Object} toPoint
+   * @param {String} toDirection
+   * @return {Object} manhattan route
+   */
+  _createManhattanRoute: function (fromPoint, fromDirection, toPoint, toDirection) {
+    const points = [];
+    this._route(points, fromPoint, fromDirection, toPoint, toDirection);
+    return reverse(points);
+  },
+
+  _route: function (points, fromPt, fromDirection, toPt, toDirection) {
+    const TOL = 0.1;
+    const TOLxTOL = 0.01;
+
+    // Minimum distance used in the algorithm
+    const MIN_DISTANCE = 16;
+
+    const { left, right, top, bottom } = DIRECTION;
+    let nextPt;
+    let nextDirection;
+
+    const xDiff = fromPt.x - toPt.x;
+    const yDiff = fromPt.y - toPt.y;
+
+    if (isNaN(xDiff) || isNaN(yDiff)) {
+      return;
+    }
+
+    if (xDiff * xDiff < TOLxTOL && yDiff * yDiff < TOLxTOL) {
+      points.push(toPt);
+      return;
+    }
+
+    switch (fromDirection) {
+      case left:
+        if (xDiff > 0 && yDiff * yDiff < TOL && toDirection === right) {
+          nextPt = toPt;
+          nextDirection = toDirection;
+        } else {
+          if (xDiff < 0) {
+            nextPt = { x: fromPt.x - MIN_DISTANCE, y: fromPt.y };
+          } else if (
+            (yDiff > 0 && toDirection === bottom) ||
+            (yDiff < 0 && toDirection === top)
+          ) {
+            nextPt = { x: toPt.x, y: fromPt.y };
+          } else if (fromDirection === toDirection) {
+            nextPt = {
+              x: Math.min(fromPt.x, toPt.x) - MIN_DISTANCE,
+              y: fromPt.y,
+            };
+          } else {
+            nextPt = { x: fromPt.x - xDiff / 2, y: fromPt.y };
+          }
+
+          if (yDiff > 0) {
+            nextDirection = top;
+          } else {
+            nextDirection = bottom;
+          }
+        }
+        break;
+      case right:
+        if (xDiff < 0 && yDiff * yDiff < TOL && toDirection === left) {
+          nextPt = toPt;
+          nextDirection = toDirection;
+        } else {
+          if (xDiff > 0) {
+            nextPt = { x: fromPt.x + MIN_DISTANCE, y: fromPt.y };
+          } else if (
+            (yDiff > 0 && toDirection === bottom) ||
+            (yDiff < 0 && toDirection === top)
+          ) {
+            nextPt = { x: toPt.x, y: fromPt.y };
+          } else if (fromDirection === toDirection) {
+            nextPt = {
+              x: Math.max(fromPt.x, toPt.x) + MIN_DISTANCE,
+              y: fromPt.y,
+            };
+          } else {
+            nextPt = { x: fromPt.x - xDiff / 2, y: fromPt.y };
+          }
+
+          if (yDiff > 0) {
+            nextDirection = top;
+          } else {
+            nextDirection = bottom;
+          }
+        }
+        break;
+      case bottom:
+        if (xDiff * xDiff < TOL && yDiff < 0 && toDirection === top) {
+          nextPt = toPt;
+          nextDirection = toDirection;
+        } else {
+          if (yDiff > 0) {
+            nextPt = { x: fromPt.x, y: fromPt.y + MIN_DISTANCE };
+          } else if (
+            (xDiff > 0 && toDirection === right) ||
+            (xDiff < 0 && toDirection === left)
+          ) {
+            nextPt = { x: fromPt.x, y: toPt.y };
+          } else if (fromDirection === toDirection) {
+            nextPt = {
+              x: fromPt.x,
+              y: Math.max(fromPt.y, toPt.y) + MIN_DISTANCE,
+            };
+          } else {
+            nextPt = { x: fromPt.x, y: fromPt.y - yDiff / 2 };
+          }
+
+          if (xDiff > 0) {
+            nextDirection = left;
+          } else {
+            nextDirection = right;
+          }
+        }
+        break;
+      case top:
+        if (xDiff * xDiff < TOL && yDiff > 0 && toDirection === bottom) {
+          nextPt = toPt;
+          nextDirection = toDirection;
+        } else {
+          if (yDiff < 0) {
+            nextPt = { x: fromPt.x, y: fromPt.y - MIN_DISTANCE };
+          } else if (
+            (xDiff > 0 && toDirection === right) ||
+            (xDiff < 0 && toDirection === left)
+          ) {
+            nextPt = { x: fromPt.x, y: toPt.y };
+          } else if (fromDirection === toDirection) {
+            nextPt = {
+              x: fromPt.x,
+              y: Math.min(fromPt.y, toPt.y) - MIN_DISTANCE,
+            };
+          } else {
+            nextPt = { x: fromPt.x, y: fromPt.y - yDiff / 2 };
+          }
+
+          if (xDiff > 0) {
+            nextDirection = left;
+          } else {
+            nextDirection = right;
+          }
+        }
+        break;
+      default:
+        throw new Error('direction can not been null');
+    }
+    this._route(points, nextPt, nextDirection, toPt, toDirection);
+    points.push(fromPt);
+  },
+
+  /**
+   * Update points
+   * @private
+   */
+
+  _updatePoints: function () {
+    this.points = this._createManhattanRoute(
+      this.fromPoint,
+      this.fromDirection,
+      this.toPoint,
+      this.toDirection
+    );
+    this.canvas.requestRenderAll();
   },
 });
 

@@ -43,6 +43,8 @@ function Demo11() {
         {
           // stroke: '#e98516',
           arrowType: 'double-sided',
+          fromPoint: { x: 10, y: 10 },
+          toPoint: { x: 300, y: 300 },
         }
       );
       canvas.add(connectionLine);
