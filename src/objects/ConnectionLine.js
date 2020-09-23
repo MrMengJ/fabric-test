@@ -173,20 +173,6 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   },
 
   /**
-   * render translate line to make connection lien easy to select
-   * @private
-   * @param {CanvasRenderingContext2D} ctx Context to render on
-   */
-  _renderEasySelectableLine: function (ctx) {
-    ctx.save();
-    ctx.lineWidth = EASY_SELECTABLE_LINE_WIDTH;
-    ctx.strokeStyle = 'transparent';
-    this._drawLine(ctx);
-    ctx.stroke();
-    ctx.restore();
-  },
-
-  /**
    * render connection line
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
@@ -228,7 +214,6 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
 
     this._renderLine(ctx);
     this._renderArrow(ctx);
-    this._renderEasySelectableLine(ctx);
     this._renderControl(ctx);
   },
 
