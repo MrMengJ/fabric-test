@@ -541,10 +541,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @param [point] point of mouse coordinates
    */
   _setHoverCursor: function (point) {
-    if (!this._isDragging) {
-      const line = this._linesContainsPoint(point);
-      if (line) {
-        if (this.canvas) {
+    if (!this._isDragging && this.canvas) {
+      if (this._startPortContainsPoint(point) || this._endPortContainsPoint(point)) {
+        const cursor = 'move';
+        this.canvas.setCursor(cursor);
+      } else {
+        const line = this._linesContainsPoint(point);
+        if (line) {
           const cursor = line.isHorizontal ? 's-resize' : 'e-resize';
           this.canvas.setCursor(cursor);
         }
@@ -660,6 +663,59 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       }
     });
     return result;
+  },
+
+  /**
+   * Get port corner coords
+   * @param [port] port coords
+   * @return {Object} corner coords
+   */
+  _getPortCornerCoords: function (port) {
+    const extraScope = this.arrowWidth * 2;
+    return {
+      tl: {
+        x: port.x - extraScope / 2,
+        y: port.y - extraScope / 2,
+      },
+      tr: {
+        x: port.x + extraScope / 2,
+        y: port.y - extraScope / 2,
+      },
+      bl: {
+        x: port.x - extraScope / 2,
+        y: port.y + extraScope / 2,
+      },
+      br: {
+        x: port.x + extraScope / 2,
+        y: port.y + extraScope / 2,
+      },
+    };
+  },
+
+  _getStartPortCornerCoords: function () {
+    return this._getPortCornerCoords(head(this.points));
+  },
+
+  _getEndPortCornerCoords: function () {
+    return this._getPortCornerCoords(last(this.points));
+  },
+
+  /**
+   * Checks if point is inside the start port
+   * @return {Boolean} true if point is inside the object
+   */
+  _startPortContainsPoint: function (point) {
+    const portCornerCoords = this._getStartPortCornerCoords();
+    return this._containsPoint(point, portCornerCoords);
+  },
+
+  /**
+   * Checks if point is inside the end port
+   * @return {Boolean} true if point is inside the object
+   */
+  _endPortContainsPoint: function (point) {
+    const portCornerCoords = this._getEndPortCornerCoords();
+    return this._containsPoint(point, portCornerCoords);
   },
 });
 
