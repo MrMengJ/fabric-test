@@ -576,6 +576,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       EASY_SELECTABLE_LINE_WIDTH,
       this.strokeWidth * this.canvas.getZoom(),
     ]);
+    const zoom = this.canvas.getZoom();
     forEach(this.points, (currentOne, index) => {
       if (index < this.points.length - 1) {
         const nextOne = this.points[index + 1];
@@ -583,20 +584,20 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         if (isHorizontal) {
           result.push({
             tl: {
-              x: currentOne.x,
-              y: currentOne.y - lineWidth / 2,
+              x: currentOne.x * zoom,
+              y: currentOne.y * zoom - lineWidth / 2,
             },
             tr: {
-              x: nextOne.x + lineWidth / 2,
-              y: nextOne.y - lineWidth / 2,
+              x: nextOne.x * zoom,
+              y: nextOne.y * zoom - lineWidth / 2,
             },
             bl: {
-              x: currentOne.x,
-              y: currentOne.y + lineWidth / 2,
+              x: currentOne.x * zoom,
+              y: currentOne.y * zoom + lineWidth / 2,
             },
             br: {
-              x: nextOne.x + lineWidth / 2,
-              y: nextOne.y + lineWidth / 2,
+              x: nextOne.x * zoom,
+              y: nextOne.y * zoom + lineWidth / 2,
             },
             isHorizontal: true,
             points: [currentOne, nextOne],
@@ -608,20 +609,20 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         } else {
           result.push({
             tl: {
-              x: currentOne.x - lineWidth / 2,
-              y: currentOne.y,
+              x: currentOne.x * zoom - lineWidth / 2,
+              y: currentOne.y * zoom,
             },
             tr: {
-              x: currentOne.x + lineWidth / 2,
-              y: currentOne.y,
+              x: currentOne.x * zoom + lineWidth / 2,
+              y: currentOne.y * zoom,
             },
             bl: {
-              x: nextOne.x - lineWidth / 2,
-              y: nextOne.y + lineWidth / 2,
+              x: nextOne.x * zoom - lineWidth / 2,
+              y: nextOne.y * zoom,
             },
             br: {
-              x: nextOne.x + lineWidth / 2,
-              y: nextOne.y + lineWidth / 2,
+              x: nextOne.x * zoom + lineWidth / 2,
+              y: nextOne.y * zoom,
             },
             isHorizontal: false,
             points: [currentOne, nextOne],
@@ -671,23 +672,24 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @return {Object} corner coords
    */
   _getPortCornerCoords: function (port) {
-    const extraScope = this.arrowWidth * 2;
+    const zoom = this.canvas.getZoom();
+    const extraScope = this.arrowWidth * 2 * zoom;
     return {
       tl: {
-        x: port.x - extraScope / 2,
-        y: port.y - extraScope / 2,
+        x: port.x * zoom - extraScope / 2,
+        y: port.y * zoom - extraScope / 2,
       },
       tr: {
-        x: port.x + extraScope / 2,
-        y: port.y - extraScope / 2,
+        x: port.x * zoom + extraScope / 2,
+        y: port.y * zoom - extraScope / 2,
       },
       bl: {
-        x: port.x - extraScope / 2,
-        y: port.y + extraScope / 2,
+        x: port.x * zoom - extraScope / 2,
+        y: port.y * zoom + extraScope / 2,
       },
       br: {
-        x: port.x + extraScope / 2,
-        y: port.y + extraScope / 2,
+        x: port.x * zoom + extraScope / 2,
+        y: port.y * zoom + extraScope / 2,
       },
     };
   },
