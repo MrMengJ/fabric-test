@@ -1,5 +1,17 @@
 import { fabric } from 'fabric';
-import { forEach, head, last, max, reverse, toInteger, isNaN } from 'lodash';
+import {
+  findIndex,
+  forEach,
+  head,
+  isEqual,
+  isNaN,
+  last,
+  max,
+  reverse,
+  toInteger,
+  map,
+  includes,
+} from 'lodash';
 
 const ARROW_TYPE = {
   none: 'none',
@@ -146,6 +158,12 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @type Object
    */
   _draggingObject: null,
+
+  /**
+   * dragging line matched point index that need changed
+   * @type Array
+   */
+  _dragLineMatchedPointIndexs: null,
 
   /**
    * Constructor
@@ -547,9 +565,11 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     const { pointer } = options;
     const isDragStartPort = this._startPortContainsPoint(pointer);
     const isDragEndPort = this._endPortContainsPoint(pointer);
-    const isDragLine = this._linesContainsPoint(pointer);
-    if (isDragStartPort || isDragEndPort || isDragLine) {
-      this._startDragging(isDragStartPort, isDragEndPort, isDragLine, pointer);
+    const draggingLine = this._linesContainsPoint(pointer);
+
+    // select or unselect
+    if (isDragStartPort || isDragEndPort || draggingLine) {
+      this.canvas._isOperateConnectionLine = true;
       if (!this.selected) {
         this.selected = true;
         this.canvas.requestRenderAll();
@@ -559,6 +579,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         this.selected = false;
         this.canvas.requestRenderAll();
       }
+    }
+
+    // start dragging
+    const isNotDraggingExtremeLine =
+      draggingLine && !draggingLine.isFirstLine && !draggingLine.isLastLine;
+    if (isDragStartPort || isDragEndPort || isNotDraggingExtremeLine) {
+      this._startDragging(isDragStartPort, isDragEndPort, draggingLine, pointer);
     }
   },
 
@@ -574,7 +601,12 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       } else {
         const line = this._linesContainsPoint(point);
         if (line) {
-          const cursor = line.isHorizontal ? 's-resize' : 'e-resize';
+          const cursor =
+            line.isFirstLine || line.isLastLine
+              ? 'pointer'
+              : line.isHorizontal
+              ? 's-resize'
+              : 'e-resize';
           this.canvas.setCursor(cursor);
         }
       }
@@ -597,15 +629,28 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         this.toPoint = point;
         this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
         this._updatePoints();
+      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.line) {
+        const { isHorizontal } = this._draggingObject.line;
+        if (isHorizontal) {
+          this.points = map(this.points, (item, index) => {
+            const matched = includes(this._dragLineMatchedPointIndexs, index);
+            return matched ? { x: item.x, y: point.y } : item;
+          });
+        } else {
+          this.points = map(this.points, (item, index) => {
+            const matched = includes(this._dragLineMatchedPointIndexs, index);
+            return matched ? { x: point.x, y: item.y } : item;
+          });
+        }
+        this._initDirection();
+        this.canvas.requestRenderAll();
       }
     }
   },
 
   _canvasMouseUpHandler: function () {
     if (this._isDragging) {
-      this._isDragging = false;
-      this.canvas._isDragConnectionLine = false;
-      this._draggingObject = null;
+      this._endDragging();
     }
   },
 
@@ -644,6 +689,8 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
             },
             isHorizontal: true,
             points: [currentOne, nextOne],
+            isFirstLine: index === 0,
+            isLastLine: index === this.points.length - 2,
             // x: currentOne.x,
             // y: currentOne.x - lineWidth / 2,
             // width: nextOne.x - currentOne.x,
@@ -669,6 +716,8 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
             },
             isHorizontal: false,
             points: [currentOne, nextOne],
+            isFirstLine: index === 0,
+            isLastLine: index === this.points.length - 2,
             // x: currentOne.x - lineWidth / 2,
             // y: currentOne.y,
             // width: lineWidth,
@@ -699,7 +748,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @return {Object} the line
    */
   _linesContainsPoint: function (point) {
-    let result = false;
+    let result = null;
     forEach(this._getLinePathArray(), (item) => {
       if (this._containsPoint(point, item)) {
         result = item;
@@ -766,14 +815,15 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   /**
    * Set dragging object info
    */
-  _setDraggingObject: function (isDragStartPort, isDragEndPort, isDragLine) {
+  _setDraggingObject: function (isDragStartPort, isDragEndPort, draggingLine) {
     const result = {};
     if (isDragStartPort) {
       result.type = DRAGGING_OBJECT_TYPE.startPort;
     } else if (isDragEndPort) {
       result.type = DRAGGING_OBJECT_TYPE.endPort;
-    } else if (isDragLine) {
+    } else if (draggingLine) {
       result.type = DRAGGING_OBJECT_TYPE.line;
+      result.line = draggingLine;
     }
     this._draggingObject = result;
   },
@@ -781,10 +831,33 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   /**
    * Start dragging
    */
-  _startDragging: function (isDragStartPort, isDragEndPort, isDragLine) {
+  _startDragging: function (isDragStartPort, isDragEndPort, draggingLine) {
     this._isDragging = true;
-    this.canvas._isDragConnectionLine = true;
-    this._setDraggingObject(isDragStartPort, isDragEndPort, isDragLine);
+    this._setDraggingObject(isDragStartPort, isDragEndPort, draggingLine);
+
+    if (draggingLine) {
+      const { points } = draggingLine;
+      const matchedPointIndexs = [];
+      forEach(points, (item1) => {
+        const matchedIndex = findIndex(this.points, (item2) => {
+          return isEqual(item1, item2);
+        });
+        if (matchedIndex > -1) {
+          matchedPointIndexs.push(matchedIndex);
+        }
+      });
+      this._dragLineMatchedPointIndexs = matchedPointIndexs;
+    }
+  },
+
+  /**
+   * End dragging
+   */
+  _endDragging: function () {
+    this._isDragging = false;
+    this.canvas._isOperateConnectionLine = false;
+    this._draggingObject = null;
+    this._dragLineMatchedPointIndexs = null;
   },
 
   /**
