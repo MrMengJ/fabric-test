@@ -11,6 +11,7 @@ import {
   toInteger,
   map,
   includes,
+  filter,
 } from 'lodash';
 
 const ARROW_TYPE = {
@@ -567,9 +568,9 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     const isDragEndPort = this._endPortContainsPoint(pointer);
     const draggingLine = this._linesContainsPoint(pointer);
 
-    // select or unselect
     if (isDragStartPort || isDragEndPort || draggingLine) {
-      this.canvas._isOperateConnectionLine = true;
+      this._startDragging(isDragStartPort, isDragEndPort, draggingLine);
+      this.canvas._isDraggingConnectionLine = true;
       if (!this.selected) {
         this.selected = true;
         this.canvas.requestRenderAll();
@@ -580,13 +581,6 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         this.canvas.requestRenderAll();
       }
     }
-
-    // start dragging
-    const isNotDraggingExtremeLine =
-      draggingLine && !draggingLine.isFirstLine && !draggingLine.isLastLine;
-    if (isDragStartPort || isDragEndPort || isNotDraggingExtremeLine) {
-      this._startDragging(isDragStartPort, isDragEndPort, draggingLine, pointer);
-    }
   },
 
   /**
@@ -595,20 +589,34 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    */
   _setHoverCursor: function (point) {
     if (!this._isDragging && this.canvas) {
+      // start port cursor , end port cursor
       if (this._startPortContainsPoint(point) || this._endPortContainsPoint(point)) {
         const cursor = 'move';
         this.canvas.setCursor(cursor);
-      } else {
-        const line = this._linesContainsPoint(point);
-        if (line) {
-          const cursor =
-            line.isFirstLine || line.isLastLine
-              ? 'pointer'
-              : line.isHorizontal
-              ? 's-resize'
-              : 'e-resize';
-          this.canvas.setCursor(cursor);
+        return;
+      }
+
+      // control point cursor
+      if (this.selected) {
+        const hoveredControlPoint = this._controlPointsContainsPoint(point);
+        if (hoveredControlPoint) {
+          const matchedLinePoints = filter(this.points, (item) => {
+            return item.x === hoveredControlPoint.x || item.y === hoveredControlPoint.y;
+          });
+          if (matchedLinePoints.length === 2) {
+            const isHorizontal = head(matchedLinePoints).y === last(matchedLinePoints).y;
+            const cursor = isHorizontal ? 's-resize' : 'e-resize';
+            this.canvas.setCursor(cursor);
+          }
+          return;
         }
+      }
+
+      // line cursor
+      const line = this._linesContainsPoint(point);
+      if (line) {
+        const cursor = 'pointer';
+        this.canvas.setCursor(cursor);
       }
     }
   },
@@ -813,6 +821,23 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   },
 
   /**
+   * Checks if point is inside the control point
+   * @return {Object} matched control point
+   */
+  _controlPointsContainsPoint: function (point) {
+    let result = null;
+    const controlPoints = this._getControlPoints();
+    forEach(controlPoints, (item) => {
+      const pathPointCornerCoords = this._getPortCornerCoords(item);
+      if (this._containsPoint(point, pathPointCornerCoords)) {
+        result = item;
+        return false;
+      }
+    });
+    return result;
+  },
+
+  /**
    * Set dragging object info
    */
   _setDraggingObject: function (isDragStartPort, isDragEndPort, draggingLine) {
@@ -855,7 +880,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    */
   _endDragging: function () {
     this._isDragging = false;
-    this.canvas._isOperateConnectionLine = false;
+    this.canvas._isDraggingConnectionLine = false;
     this._draggingObject = null;
     this._dragLineMatchedPointIndexs = null;
   },
