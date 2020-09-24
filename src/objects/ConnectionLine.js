@@ -39,6 +39,8 @@ const DRAGGING_OBJECT_TYPE = {
   line: 'line',
 };
 
+const MIN_DRAG_DISTANCE = 2;
+
 const ConnectionLine = fabric.util.createClass(fabric.Object, {
   type: 'ConnectionLine',
 
@@ -161,6 +163,12 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @type Object
    */
   _draggingObject: null,
+
+  /**
+   * record the mouse coords when start dragging
+   * @type Object
+   */
+  _startDraggingPoint: null,
 
   /**
    * Constructor
@@ -566,6 +574,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     const draggingLine = this._linesContainsPoint(pointer);
 
     if (isDragStartPort || isDragEndPort || draggingControlPoint || draggingLine) {
+      this._startDraggingPoint = pointer;
       this._startDragging(
         isDragStartPort,
         isDragEndPort,
@@ -733,6 +742,13 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   _canvasMouseMoveHandler: function (options) {
     this._setHoverCursor(options.pointer);
     if (this._isDragging) {
+      const notDrag =
+        Math.abs(options.pointer.x - this._startDraggingPoint.x) < MIN_DRAG_DISTANCE &&
+        Math.abs(options.pointer.y - this._startDraggingPoint.y) < MIN_DRAG_DISTANCE;
+      if (notDrag) {
+        return;
+      }
+
       const zoom = this.canvas.getZoom();
       const point = {
         x: options.pointer.x / zoom,
@@ -1009,6 +1025,7 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     this._isDragging = false;
     this.canvas._isDraggingConnectionLine = false;
     this._draggingObject = null;
+    this._startDraggingPoint = null;
   },
 
   /**
