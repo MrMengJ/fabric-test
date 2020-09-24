@@ -12,6 +12,7 @@ import {
   map,
   includes,
   filter,
+  cloneDeep,
 } from 'lodash';
 
 const ARROW_TYPE = {
@@ -34,6 +35,7 @@ const MIN_DISTANCE_AROUND_SHAPE = 10;
 const DRAGGING_OBJECT_TYPE = {
   startPort: 'startPort',
   endPort: 'endPort',
+  controlPoint: 'controlPoint',
   line: 'line',
 };
 
@@ -159,12 +161,6 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * @type Object
    */
   _draggingObject: null,
-
-  /**
-   * dragging line matched point index that need changed
-   * @type Array
-   */
-  _dragLineMatchedPointIndexs: null,
 
   /**
    * Constructor
@@ -566,10 +562,16 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     const { pointer } = options;
     const isDragStartPort = this._startPortContainsPoint(pointer);
     const isDragEndPort = this._endPortContainsPoint(pointer);
+    const draggingControlPoint = this._controlPointsContainsPoint(pointer);
     const draggingLine = this._linesContainsPoint(pointer);
 
-    if (isDragStartPort || isDragEndPort || draggingLine) {
-      this._startDragging(isDragStartPort, isDragEndPort, draggingLine);
+    if (isDragStartPort || isDragEndPort || draggingControlPoint || draggingLine) {
+      this._startDragging(
+        isDragStartPort,
+        isDragEndPort,
+        draggingControlPoint,
+        draggingLine
+      );
       this.canvas._isDraggingConnectionLine = true;
       if (!this.selected) {
         this.selected = true;
@@ -600,9 +602,9 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       if (this.selected) {
         const hoveredControlPoint = this._controlPointsContainsPoint(point);
         if (hoveredControlPoint) {
-          const matchedLinePoints = filter(this.points, (item) => {
-            return item.x === hoveredControlPoint.x || item.y === hoveredControlPoint.y;
-          });
+          const matchedLinePoints = this._getControlPointCorrespondingLinePathPoints(
+            hoveredControlPoint
+          );
           if (matchedLinePoints.length === 2) {
             const isHorizontal = head(matchedLinePoints).y === last(matchedLinePoints).y;
             const cursor = isHorizontal ? 's-resize' : 'e-resize';
@@ -621,6 +623,113 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     }
   },
 
+  _dragFirstLine: function (point) {
+    const { controlPoint, originalPoints, isHorizontal } = this._draggingObject;
+    let newPoints = cloneDeep(originalPoints);
+    if (isHorizontal) {
+      newPoints[1].y = point.y;
+      const addedPoints = [
+        {
+          x: (controlPoint.x + head(originalPoints).x) / 2,
+          y: controlPoint.y,
+        },
+        {
+          x: (controlPoint.x + head(originalPoints).x) / 2,
+          y: point.y,
+        },
+      ];
+      newPoints.splice(1, 0, addedPoints[0], addedPoints[1]);
+      this.points = newPoints;
+    } else {
+      newPoints[1].x = point.x;
+      const addedPoints = [
+        {
+          x: controlPoint.x,
+          y: (controlPoint.y + head(originalPoints).y) / 2,
+        },
+        {
+          x: point.x,
+          y: (controlPoint.y + head(originalPoints).y) / 2,
+        },
+      ];
+      newPoints.splice(1, 0, addedPoints[0], addedPoints[1]);
+      this.points = newPoints;
+    }
+  },
+
+  _dragLastLine: function (point) {
+    const { controlPoint, originalPoints, isHorizontal } = this._draggingObject;
+    let newPoints = cloneDeep(originalPoints);
+    if (isHorizontal) {
+      newPoints[originalPoints.length - 2].y = point.y;
+      const addedPoints = [
+        {
+          x: (controlPoint.x + last(originalPoints).x) / 2,
+          y: point.y,
+        },
+        {
+          x: (controlPoint.x + last(originalPoints).x) / 2,
+          y: controlPoint.y,
+        },
+      ];
+      newPoints.splice(-1, 0, addedPoints[0], addedPoints[1]);
+      this.points = newPoints;
+    } else {
+      newPoints[originalPoints.length - 2].x = point.x;
+      const addedPoints = [
+        {
+          x: point.x,
+          y: (controlPoint.y + last(originalPoints).y) / 2,
+        },
+        {
+          x: controlPoint.x,
+          y: (controlPoint.y + last(originalPoints).y) / 2,
+        },
+      ];
+      newPoints.splice(-1, 0, addedPoints[0], addedPoints[1]);
+      this.points = newPoints;
+    }
+  },
+
+  /**
+   * Set new points when drag control point
+   * @param point point of mouse coordinates
+   */
+  _handleDragControlPoint: function (point) {
+    const {
+      controlPoint,
+      originalPoints,
+      isHorizontal,
+      isFirstLine,
+      isLastLine,
+    } = this._draggingObject;
+
+    const correspondingLinePathPoints = this._getControlPointCorrespondingLinePathPoints(
+      controlPoint,
+      originalPoints
+    );
+
+    if (isFirstLine) {
+      this._dragFirstLine(point);
+    } else if (isLastLine) {
+      this._dragLastLine(point);
+    } else {
+      if (isHorizontal) {
+        this.points = map(originalPoints, (item) => {
+          const matched = includes(correspondingLinePathPoints, item);
+          return matched ? { x: item.x, y: point.y } : item;
+        });
+      } else {
+        this.points = map(originalPoints, (item) => {
+          const matched = includes(correspondingLinePathPoints, item);
+          return matched ? { x: point.x, y: item.y } : item;
+        });
+      }
+    }
+    this._initDirection();
+    this.canvas.requestRenderAll();
+  },
+
   _canvasMouseMoveHandler: function (options) {
     this._setHoverCursor(options.pointer);
     if (this._isDragging) {
@@ -637,21 +746,8 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
         this.toPoint = point;
         this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
         this._updatePoints();
-      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.line) {
-        const { isHorizontal } = this._draggingObject.line;
-        if (isHorizontal) {
-          this.points = map(this.points, (item, index) => {
-            const matched = includes(this._dragLineMatchedPointIndexs, index);
-            return matched ? { x: item.x, y: point.y } : item;
-          });
-        } else {
-          this.points = map(this.points, (item, index) => {
-            const matched = includes(this._dragLineMatchedPointIndexs, index);
-            return matched ? { x: point.x, y: item.y } : item;
-          });
-        }
-        this._initDirection();
-        this.canvas.requestRenderAll();
+      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.controlPoint) {
+        this._handleDragControlPoint(point);
       }
     }
   },
@@ -837,15 +933,50 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     return result;
   },
 
+  _setDraggingObjectWhenDragControlPoint: function (draggingControlPoint) {
+    const correspondingLinePathPoints = this._getControlPointCorrespondingLinePathPoints(
+      draggingControlPoint
+    );
+
+    const isHorizontal =
+      last(correspondingLinePathPoints).y === head(correspondingLinePathPoints).y;
+
+    const matchedPointIndexs = [];
+    forEach(correspondingLinePathPoints, (item1) => {
+      const matchedIndex = findIndex(this.points, (item2) => {
+        return isEqual(item1, item2);
+      });
+      if (matchedIndex > -1) {
+        matchedPointIndexs.push(matchedIndex);
+      }
+    });
+
+    return {
+      type: DRAGGING_OBJECT_TYPE.controlPoint,
+      controlPoint: draggingControlPoint,
+      originalPoints: this.points,
+      isHorizontal: isHorizontal,
+      isFirstLine: includes(matchedPointIndexs, 0),
+      isLastLine: includes(matchedPointIndexs, this.points.length - 1),
+    };
+  },
+
   /**
    * Set dragging object info
    */
-  _setDraggingObject: function (isDragStartPort, isDragEndPort, draggingLine) {
-    const result = {};
+  _setDraggingObject: function (
+    isDragStartPort,
+    isDragEndPort,
+    draggingControlPoint,
+    draggingLine
+  ) {
+    let result = {};
     if (isDragStartPort) {
       result.type = DRAGGING_OBJECT_TYPE.startPort;
     } else if (isDragEndPort) {
       result.type = DRAGGING_OBJECT_TYPE.endPort;
+    } else if (draggingControlPoint) {
+      result = this._setDraggingObjectWhenDragControlPoint(draggingControlPoint);
     } else if (draggingLine) {
       result.type = DRAGGING_OBJECT_TYPE.line;
       result.line = draggingLine;
@@ -856,23 +987,19 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
   /**
    * Start dragging
    */
-  _startDragging: function (isDragStartPort, isDragEndPort, draggingLine) {
+  _startDragging: function (
+    isDragStartPort,
+    isDragEndPort,
+    draggingControlPoint,
+    draggingLine
+  ) {
     this._isDragging = true;
-    this._setDraggingObject(isDragStartPort, isDragEndPort, draggingLine);
-
-    if (draggingLine) {
-      const { points } = draggingLine;
-      const matchedPointIndexs = [];
-      forEach(points, (item1) => {
-        const matchedIndex = findIndex(this.points, (item2) => {
-          return isEqual(item1, item2);
-        });
-        if (matchedIndex > -1) {
-          matchedPointIndexs.push(matchedIndex);
-        }
-      });
-      this._dragLineMatchedPointIndexs = matchedPointIndexs;
-    }
+    this._setDraggingObject(
+      isDragStartPort,
+      isDragEndPort,
+      draggingControlPoint,
+      draggingLine
+    );
   },
 
   /**
@@ -882,7 +1009,6 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
     this._isDragging = false;
     this.canvas._isDraggingConnectionLine = false;
     this._draggingObject = null;
-    this._dragLineMatchedPointIndexs = null;
   },
 
   /**
@@ -1107,7 +1233,6 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
    * Update points
    * @private
    */
-
   _updatePoints: function () {
     this.points = this._createManhattanRoute(
       this.fromPoint,
@@ -1116,6 +1241,20 @@ const ConnectionLine = fabric.util.createClass(fabric.Object, {
       this.toDirection
     );
     this.canvas.requestRenderAll();
+  },
+
+  /**
+   * Get control point corresponding line path points
+   * @private
+   * @return {Array} path points
+   */
+  _getControlPointCorrespondingLinePathPoints: function (
+    controlPoint,
+    points = this.points
+  ) {
+    return filter(points, (item) => {
+      return item.x === controlPoint.x || item.y === controlPoint.y;
+    });
   },
 });
 
