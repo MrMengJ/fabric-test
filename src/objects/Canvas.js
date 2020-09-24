@@ -226,7 +226,7 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @type Boolean
    * @default
    */
-  selectionFullyContained: false,
+  selectionFullyContained: true,
 
   /**
    * Default cursor value used when hovering over an object on canvas
