@@ -10,9 +10,10 @@ import Demo7 from './demo7';
 import Demo8 from './demo8';
 import Demo10 from './demo10';
 import Demo11 from './demo11';
+import Demo12 from './demo12';
 
 function FabricText() {
-  return <Demo11 />;
+  return <Demo12 />;
 }
 
 export default FabricText;

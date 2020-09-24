@@ -1,10 +1,12 @@
 import { fabric } from 'fabric';
 import { forEach } from 'lodash';
 
+import BaseObject from './BaseObject';
+
 var min = fabric.util.array.min,
   max = fabric.util.array.max;
 
-const Group = fabric.util.createClass(fabric.Object, fabric.Collection, {
+const Group = fabric.util.createClass(BaseObject, fabric.Collection, {
   type: 'Group',
   /**
    * Width of stroke

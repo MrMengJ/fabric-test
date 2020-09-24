@@ -2,6 +2,8 @@
 import { fabric } from 'fabric';
 import { get, max } from 'lodash';
 
+import BaseObject from './BaseObject';
+
 const clone = fabric.util.object.clone;
 const degreesToRadians = fabric.util.degreesToRadians;
 
@@ -11,7 +13,7 @@ const defaultTextStyle = {
   fill: '#000',
 };
 
-const Text = fabric.util.createClass(fabric.Object, {
+const Text = fabric.util.createClass(BaseObject, {
   type: 'Text',
 
   /**
