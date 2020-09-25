@@ -586,12 +586,14 @@ const Group = fabric.util.createClass(BaseObject, fabric.Collection, {
       var canvas = _this.canvas;
       if (canvas) {
         forEach(subObjects, (item) => {
-          if (!canvas._hasITextHandlers) {
-            canvas._hasITextHandlers = true;
-            item._initCanvasHandlers(canvas);
+          if (item._hasTextInstance) {
+            if (!canvas._hasITextHandlers) {
+              canvas._hasITextHandlers = true;
+              item._initCanvasHandlers(canvas);
+            }
+            canvas._iTextInstances = canvas._iTextInstances || [];
+            canvas._iTextInstances.push(item);
           }
-          canvas._iTextInstances = canvas._iTextInstances || [];
-          canvas._iTextInstances.push(item);
         });
       }
     });

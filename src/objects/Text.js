@@ -17,6 +17,13 @@ const Text = fabric.util.createClass(BaseObject, {
   type: 'Text',
 
   /**
+   * Indicate whether is text instance.
+   * @type Boolean
+   * @private
+   */
+  _hasTextInstance: true,
+
+  /**
    * Properties which when set cause object to change dimensions
    * @type Array
    * @private
