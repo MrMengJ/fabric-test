@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import styled from 'styled-components';
-import { max } from 'lodash';
+import { forEach, max } from 'lodash';
 
 import Canvas from '../../objects/Canvas';
 import Group from '../../objects/Group';
@@ -21,6 +21,7 @@ function Demo7() {
   const [zoom, setZoom] = useState(1);
   const [scaleX, setScaleX] = useState(1);
   const [scaleY, setScaleY] = useState(1);
+  const [isConnectionMode, setIsConnectionMode] = useState(false);
 
   useEffect(() => {
     if (canvasEl.current) {
@@ -166,6 +167,37 @@ function Demo7() {
     canvas.renderAll();
   };
 
+  const handleConnectionMode = () => {
+    const allObjects = canvas.getObjects();
+    if (isConnectionMode) {
+      setIsConnectionMode(false);
+      forEach(allObjects, (item) => {
+        if (item.hasControls) {
+          item.setControlsVisibility({
+            ml: true,
+            mt: true,
+            mr: true,
+            mb: true,
+          });
+        }
+      });
+      canvas.requestRenderAll();
+    } else {
+      setIsConnectionMode(true);
+      forEach(allObjects, (item) => {
+        if (item.hasControls) {
+          item.setControlsVisibility({
+            ml: false,
+            mt: false,
+            mr: false,
+            mb: false,
+          });
+        }
+      });
+      canvas.requestRenderAll();
+    }
+  };
+
   return (
     <>
       <StyledCanvas ref={canvasEl} id={'canvas'} />
@@ -175,6 +207,9 @@ function Demo7() {
       <button onClick={handleZoomIn}>-1 zoom</button>
       <button onClick={handleAddAngle}>+ 30°</button>
       <button onClick={handleSubtractAngle}>- 30°</button>
+      <button onClick={handleConnectionMode}>
+        {isConnectionMode ? '取消连线' : '连线模式'}
+      </button>
       <p>角度：{angle}</p>
       <p>缩放：{zoom}</p>
       <p>scaleX：{scaleX}</p>
