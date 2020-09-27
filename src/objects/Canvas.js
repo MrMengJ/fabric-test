@@ -315,7 +315,7 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @type Boolean
    * @default
    */
-  preserveObjectStacking: false,
+  preserveObjectStacking: true,
 
   /**
    * Indicates the angle that an object will lock to while rotating.
