@@ -365,6 +365,13 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   targets: [],
 
   /**
+   * Indicates is in connection mode
+   * @type Boolean
+   * @default false
+   */
+  connectionMode: false,
+
+  /**
    * Keep track of the hovered target
    * @type fabric.Object
    * @private
@@ -2408,7 +2415,14 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
         // the bigger touch area.
         target._findTargetCorner(this.getPointer(e, true));
 
-    if (!corner) {
+    const anchorCorner =
+      this.connectionMode && target._findAnchor(this.getPointer(e, true));
+
+    if (corner) {
+      this.setCursor(this.getCornerCursor(corner, target, e));
+    } else if (anchorCorner) {
+      this.setCursor(this.getAnchorCursor(anchorCorner, target, e));
+    } else {
       if (target.subTargetCheck) {
         // hoverCursor should come from top-most subTarget,
         // so we walk the array backwards
@@ -2420,8 +2434,6 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
           });
       }
       this.setCursor(hoverCursor);
-    } else {
-      this.setCursor(this.getCornerCursor(corner, target, e));
     }
   },
 
@@ -2431,6 +2443,14 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   getCornerCursor: function (corner, target, e) {
     var control = target.controls[corner];
     return control.cursorStyleHandler(e, control, target);
+  },
+
+  /**
+   * @private
+   */
+  getAnchorCursor: function (anchorKey, target, e) {
+    const anchor = target.anchors[anchorKey];
+    return anchor.cursorStyleHandler(e, anchor, target);
   },
 
   //  canvas_gestures.mixin.js

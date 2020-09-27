@@ -590,6 +590,8 @@ const Text = fabric.util.createClass(BaseObject, {
     this._renderText(ctx);
     this._renderTextDecoration(ctx, 'overline');
     this._renderTextDecoration(ctx, 'linethrough');
+
+    this.callSuper('_render', ctx);
   },
 
   /**

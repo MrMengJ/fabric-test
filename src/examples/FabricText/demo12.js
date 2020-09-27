@@ -15,7 +15,7 @@ let editableTextShape;
 let editableTextShape2;
 let group;
 
-function Demo7() {
+function Demo12() {
   const canvasEl = useRef(null);
   const [angle, setAngle] = useState(0);
   const [zoom, setZoom] = useState(1);
@@ -170,6 +170,7 @@ function Demo7() {
   const handleConnectionMode = () => {
     const allObjects = canvas.getObjects();
     if (isConnectionMode) {
+      canvas.set('connectionMode', false);
       setIsConnectionMode(false);
       forEach(allObjects, (item) => {
         if (item.hasControls) {
@@ -184,6 +185,7 @@ function Demo7() {
       canvas.requestRenderAll();
     } else {
       setIsConnectionMode(true);
+      canvas.set('connectionMode', true);
       forEach(allObjects, (item) => {
         if (item.hasControls) {
           item.setControlsVisibility({
@@ -218,6 +220,6 @@ function Demo7() {
   );
 }
 
-Demo7.propTypes = {};
+Demo12.propTypes = {};
 
-export default Demo7;
+export default Demo12;
