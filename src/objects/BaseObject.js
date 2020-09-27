@@ -67,12 +67,9 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
       gradient.addColorStop(1, this.endColor);
       ctx.fillStyle = gradient;
       ctx.fill();
-      ctx.stroke();
     } else {
       ctx.fillStyle = this.fill;
       this.fill !== null && ctx.fill();
-      ctx.strokeStyle = this.stroke;
-      ctx.stroke();
     }
   },
 
