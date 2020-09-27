@@ -577,6 +577,7 @@ const Text = fabric.util.createClass(BaseObject, {
 
     // set ctx to avoid text scale
     this._resetCtxScaleForTextRender(ctx);
+    this.callSuper('_render', ctx);
 
     // ctx.translate(
     //   -((this.width / 2) * max([scaleX - 1, 0])),

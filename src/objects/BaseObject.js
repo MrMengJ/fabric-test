@@ -1,4 +1,5 @@
 import { fabric } from 'fabric';
+import { DIRECTION } from '../constants/shapes';
 
 const BaseObject = fabric.util.createClass(fabric.Object, {
   /**
@@ -57,6 +58,50 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
    * @default
    */
   transparentCorners: false,
+
+  _render: function (ctx) {
+    if (this.gradient) {
+      const gradientParam = this.getGradientParam(this);
+      let gradient = ctx.createLinearGradient(...gradientParam);
+      gradient.addColorStop(0, this.startColor);
+      gradient.addColorStop(1, this.endColor);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+      ctx.stroke();
+    } else {
+      ctx.fillStyle = this.fill;
+      this.fill !== null && ctx.fill();
+      ctx.strokeStyle = this.stroke;
+      ctx.stroke();
+    }
+  },
+
+  getGradientParam: (obj) => {
+    let w = obj.width,
+      h = obj.height,
+      x = -obj.width / 2,
+      y = -obj.height / 2;
+    switch (obj.direction) {
+      case DIRECTION.TOP:
+        return [x, y + h, x, y];
+      case DIRECTION.TOP_RIGHT:
+        return [x, y + h, x + w, y];
+      case DIRECTION.TOP_LEFT:
+        return [x + w, y + h, x, y];
+      case DIRECTION.LEFT:
+        return [x + w, y, x, y];
+      case DIRECTION.RIGHT:
+        return [x, y, x + w, y];
+      case DIRECTION.BOTTOM:
+        return [x, y, x, y + h];
+      case DIRECTION.BOTTOM_LEFT:
+        return [x + w, y, x, y + h];
+      case DIRECTION.BOTTOM_RIGHT:
+        return [x, y, x + w, y + h];
+      default:
+        return [x, y, x, y + h];
+    }
+  },
 });
 
 export default BaseObject;
