@@ -570,6 +570,7 @@ const Text = fabric.util.createClass(BaseObject, {
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
   _render: function (ctx) {
+    this.callSuper('_render', ctx);
     // initDimensions
     this.initDimensions();
 
@@ -577,7 +578,6 @@ const Text = fabric.util.createClass(BaseObject, {
 
     // set ctx to avoid text scale
     this._resetCtxScaleForTextRender(ctx);
-    this.callSuper('_render', ctx);
 
     // ctx.translate(
     //   -((this.width / 2) * max([scaleX - 1, 0])),
@@ -590,8 +590,6 @@ const Text = fabric.util.createClass(BaseObject, {
     this._renderText(ctx);
     this._renderTextDecoration(ctx, 'overline');
     this._renderTextDecoration(ctx, 'linethrough');
-
-    this.callSuper('_render', ctx);
   },
 
   /**
