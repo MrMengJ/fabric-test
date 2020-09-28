@@ -1342,7 +1342,7 @@ const Text = fabric.util.createClass(BaseObject, {
    * @return {Number} Left offset
    */
   _getLeftOffset: function () {
-    return -this._getActualWidth() / 2;
+    return -this._getActualWidth(true) / 2;
   },
 
   /**
@@ -1351,13 +1351,13 @@ const Text = fabric.util.createClass(BaseObject, {
    */
   _getTopOffset: function () {
     if (this.verticalAlign === 'top') {
-      return -this._getActualHeight() / 2;
+      return -this._getActualHeight(true) / 2;
     } else if (this.verticalAlign === 'middle') {
       return -this.calcTextHeight() / 2;
     } else if (this.verticalAlign === 'bottom') {
-      return -(this.calcTextHeight() - this._getActualHeight() / 2);
+      return -(this.calcTextHeight() - this._getActualHeight(true) / 2);
     }
-    return -this._getActualHeight() / 2;
+    return -this._getActualHeight(true) / 2;
   },
 
   /**
@@ -1421,7 +1421,7 @@ const Text = fabric.util.createClass(BaseObject, {
    * @return {Number} Line left offset
    */
   _getLineLeftOffset: function (lineIndex) {
-    const actualWidth = this._getActualWidth();
+    const actualWidth = this._getActualWidth(true);
     var lineWidth = this.getLineWidth(lineIndex);
     if (this.textAlign === 'center') {
       return (actualWidth - lineWidth) / 2;
@@ -3386,7 +3386,7 @@ const Text = fabric.util.createClass(BaseObject, {
       lineIndex = 0,
       lineLeftOffset,
       line,
-      topOffset = this._getActualHeight() / 2 + this._getTopOffset();
+      topOffset = this._getActualHeight(true) / 2 + this._getTopOffset();
 
     for (var i = 0, len = this._textLines.length; i < len; i++) {
       if (height <= mouseOffset.y - topOffset) {
@@ -4415,7 +4415,7 @@ const Text = fabric.util.createClass(BaseObject, {
       graphemeLines: newLines,
     };
 
-    var graphemeLines = this._wrapText(newText.lines, this._getActualWidth()),
+    var graphemeLines = this._wrapText(newText.lines, this._getActualWidth(true)),
       lines = new Array(graphemeLines.length);
     for (var i = 0; i < graphemeLines.length; i++) {
       lines[i] = graphemeLines[i].join('');
@@ -4473,28 +4473,6 @@ const Text = fabric.util.createClass(BaseObject, {
   },
 
   //  custom added
-
-  /**
-   * Get object actual width
-   */
-  _getActualWidth: function () {
-    return this.getObjectScaling().scaleX * this.width;
-  },
-
-  /**
-   * Get object actual height
-   */
-  _getActualHeight: function () {
-    return this.getObjectScaling().scaleY * this.height;
-  },
-
-  /**
-   * Get object actual angle
-   */
-  _getActualAngle: function () {
-    const { angle } = fabric.util.qrDecompose(this.calcTransformMatrix());
-    return angle;
-  },
 
   /**
    * Get current transform

@@ -174,18 +174,17 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     this._renderAnchors(ctx);
   },
 
+  /**
+   * Constructor
+   * @param {CanvasRenderingContext2D} ctx Context to render on
+   * @param {Object} styleOverride override for anchors style
+   */
   _renderAnchors: function (ctx, styleOverride) {
     if (!this.canvas.connectionMode || isEmpty(this.anchors)) {
       return;
     }
 
-    let vpt = this.getViewportTransform(),
-      matrix = this.calcTransformMatrix(),
-      options;
-    matrix = fabric.util.multiplyTransformMatrices(vpt, matrix);
-    options = fabric.util.qrDecompose(matrix);
     ctx.save();
-    ctx.translate(options.translateX, options.translateY);
     ctx.lineWidth = 1 * this.borderScaleFactor;
     if (!this.group) {
       ctx.globalAlpha = this.isMoving ? this.borderOpacityWhenMoving : 1;
@@ -225,15 +224,20 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
   },
 
   _calcAnchorCoords: function () {
-    let rotateMatrix = this._calcRotateMatrix(),
-      translateMatrix = this._calcTranslateMatrix(),
-      vpt = this.getViewportTransform(),
-      startMatrix = multiplyMatrices(vpt, translateMatrix),
-      finalMatrix = multiplyMatrices(startMatrix, rotateMatrix),
-      dim = this._calculateCurrentDimensions(),
-      coords = {};
-    finalMatrix = multiplyMatrices(finalMatrix, [1 / vpt[0], 0, 0, 1 / vpt[3], 0, 0]);
+    // calc translateMatrix
+    const transformMatrix = this.calcTransformMatrix();
+    const translateMatrix = this._calcTranslateMatrix();
+    translateMatrix[4] = transformMatrix[4];
+    translateMatrix[5] = transformMatrix[5];
 
+    const rotateMatrix = fabric.util.calcRotateMatrix({ angle: this._getActualAngle() });
+    const vpt = this.getViewportTransform();
+    const startMatrix = multiplyMatrices(vpt, translateMatrix);
+    const dim = new fabric.Point(this._getActualWidth(), this._getActualHeight());
+    let finalMatrix = multiplyMatrices(startMatrix, rotateMatrix);
+    const coords = {};
+
+    finalMatrix = multiplyMatrices(finalMatrix, [1 / vpt[0], 0, 0, 1 / vpt[3], 0, 0]);
     this.forEachAnchor(function (anchor, key, fabricObject) {
       coords[key] = anchor.positionHandler(dim, finalMatrix, fabricObject);
     });
@@ -241,6 +245,9 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     return coords;
   },
 
+  /**
+   * @private
+   */
   _setAnchorCoords: function () {
     this.anchorCoords = this._calcAnchorCoords();
     this._setAnchorCornerCoords();
@@ -308,6 +315,12 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     }
   },
 
+  /**
+   * Determines which anchor has been around of the pointer
+   * @private
+   * @param {Object} pointer The pointer indicating the mouse position
+   * @return {String|Boolean} anchor key , or false if nothing is found
+   */
   _findAnchor: function (pointer) {
     // must not return an hovered corner.
     if (!this.canvas || isEmpty(this.anchorCoords)) {
@@ -333,6 +346,38 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
       }
     }
     return false;
+  },
+
+  /**
+   * Get object actual width
+   * @param {Boolean} ignoreZoom
+   */
+  _getActualWidth: function (ignoreZoom = false) {
+    if (ignoreZoom) {
+      return this.getObjectScaling().scaleX * this.width;
+    } else {
+      return this.getTotalObjectScaling().scaleX * this.width;
+    }
+  },
+
+  /**
+   * Get object actual height
+   * @param {Boolean} ignoreZoom
+   */
+  _getActualHeight: function (ignoreZoom = false) {
+    if (ignoreZoom) {
+      return this.getObjectScaling().scaleY * this.height;
+    } else {
+      return this.getTotalObjectScaling().scaleY * this.height;
+    }
+  },
+
+  /**
+   * Get object actual angle
+   */
+  _getActualAngle: function () {
+    const { angle } = fabric.util.qrDecompose(this.calcTransformMatrix());
+    return angle;
   },
 });
 
