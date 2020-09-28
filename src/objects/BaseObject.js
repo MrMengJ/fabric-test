@@ -234,8 +234,13 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     const vpt = this.getViewportTransform();
     const startMatrix = multiplyMatrices(vpt, translateMatrix);
     const dim = new fabric.Point(this._getActualWidth(), this._getActualHeight());
+    // const dim = this._calculateCurrentDimensions();
+
     let finalMatrix = multiplyMatrices(startMatrix, rotateMatrix);
     const coords = {};
+
+    console.log('transformMatrix', transformMatrix);
+    console.log('dim', dim);
 
     finalMatrix = multiplyMatrices(finalMatrix, [1 / vpt[0], 0, 0, 1 / vpt[3], 0, 0]);
     this.forEachAnchor(function (anchor, key, fabricObject) {
@@ -356,7 +361,8 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     if (ignoreZoom) {
       return this.getObjectScaling().scaleX * this.width;
     } else {
-      return this.getTotalObjectScaling().scaleX * this.width;
+      const zoom = this.canvas ? this.canvas.getZoom() : 1;
+      return this.getObjectScaling().scaleX * zoom * this.width;
     }
   },
 
@@ -368,7 +374,8 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     if (ignoreZoom) {
       return this.getObjectScaling().scaleY * this.height;
     } else {
-      return this.getTotalObjectScaling().scaleY * this.height;
+      const zoom = this.canvas ? this.canvas.getZoom() : 1;
+      return this.getObjectScaling().scaleY * zoom * this.height;
     }
   },
 
