@@ -8,7 +8,7 @@ const ActionSelection = fabric.util.createClass(Group, {
    * @type String
    * @default
    */
-  type: 'ActiveSelection',
+  type: 'activeSelection',
 
   /**
    * Constructor
