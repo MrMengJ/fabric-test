@@ -169,6 +169,10 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
       ctx.fillStyle = this.fill;
       this.fill !== null && ctx.fill();
     }
+      if(this.strokeWidth !== undefined && this.strokeWidth !== 0){
+          ctx.strokeWidth = this.strokeWidth;
+          ctx.stroke();
+      }
 
     this.callSuper('_render', ctx);
     this._renderAnchors(ctx);
