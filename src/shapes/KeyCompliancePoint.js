@@ -1,8 +1,8 @@
 import { fabric } from 'fabric';
 import { DIRECTION } from '../constants/shapes';
-import Text from "../objects/Text";
+import Text from '../objects/Text';
 
-export const From = fabric.util.createClass(Text, {
+export const KeyCompliancePoint = fabric.util.createClass(Text, {
   isEditingText: false,
   scalePercent: 1,
   thumbnail: false,
@@ -11,19 +11,26 @@ export const From = fabric.util.createClass(Text, {
   minimal: false,
   x: 0,
   y: 0,
-  width: 50,
-  height: 50,
-  radius: 25,
-  fill: '#fff',
+  width: 100,
+  height: 60,
+  radiusX: 50,
+  radiusY: 30,
+  rotation: 0,
+  fill: null,
   stroke: '#000',
   direction: DIRECTION.BOTTOM,
-  startColor: '#71afff',
-  endColor: '#71afff',
-    text:"From",
+  startColor: '#fff',
+  endColor: '#fff',
+  text: 'KCP',
   _render: function (ctx) {
+    let x = this.x,
+      y = this.y,
+      rx = this.radiusX,
+      ry = this.radiusY;
 
     ctx.beginPath();
-    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.setLineDash([5, 5]);
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
     ctx.closePath();
 

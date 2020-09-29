@@ -1,9 +1,9 @@
 import { fabric } from 'fabric';
 
 import { DIRECTION } from '../constants/shapes';
-import Text from "../objects/Text";
+import Text from '../objects/Text';
 
-export const Role = fabric.util.createClass(Text, {
+export const Document = fabric.util.createClass(Text, {
   isEditingText: false,
   scalePercent: 1,
   thumbnail: false,
@@ -17,9 +17,9 @@ export const Role = fabric.util.createClass(Text, {
   fill: '#fff',
   stroke: '#000',
   direction: DIRECTION.BOTTOM,
-  startColor: '#fcff7b',
-  endColor: '#ffffc6',
-  text:"角色",
+  startColor: '#ffff00',
+  endColor: '#ffff00',
+  text: '文档',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -28,9 +28,17 @@ export const Role = fabric.util.createClass(Text, {
 
     ctx.beginPath();
     ctx.moveTo(x, y);
+    ctx.lineTo(x, y + h * 0.85);
+    ctx.quadraticCurveTo(x + w * 0.2, y + h + 1.1, x + w * 0.5, y + h * 0.8);
+    ctx.bezierCurveTo(
+      x + w * 0.8,
+      y + h * 0.5,
+      x + w * 0.8,
+      y + h * 0.5,
+      x + w,
+      y + h * 0.8
+    );
     ctx.lineTo(x + w, y);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x, y + h);
     ctx.lineTo(x, y);
     ctx.closePath();
 

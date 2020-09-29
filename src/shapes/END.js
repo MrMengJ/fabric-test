@@ -1,24 +1,25 @@
 import { fabric } from 'fabric';
+
 import { DIRECTION } from '../constants/shapes';
 import Text from "../objects/Text";
 
-export const VirtualRole = fabric.util.createClass(Text, {
+export const END = fabric.util.createClass(Text, {
     isEditingText: false,
     scalePercent: 1,
     thumbnail: false,
     readonly: false,
     hasText: true,
     minimal: false,
-    width: 100,
+    width: 60,
     height: 60,
     x: 0,
     y: 0,
     fill: '#fff',
     stroke: '#000',
     direction: DIRECTION.BOTTOM,
-    startColor: '#fcff7b',
-    endColor: '#ffffc6',
-    text:"虚拟角色",
+    startColor: '#ccff66',
+    endColor: '#ccff66',
+    text:"End",
     _render: function (ctx) {
         let w = this.width,
             h = this.height,
@@ -26,13 +27,11 @@ export const VirtualRole = fabric.util.createClass(Text, {
             y = -this.height / 2;
 
         ctx.beginPath();
-        ctx.setLineDash([20, 10]);
-        ctx.moveTo(x, y);
-        ctx.lineTo(x + w, y);
-        ctx.lineTo(x + w, y + h);
-        ctx.lineTo(x, y + h);
-        ctx.lineTo(x, y);
+        ctx.moveTo(x +w/2, y);
+        ctx.lineTo(x, y+h);
+        ctx.lineTo(x+w,y+h);
         ctx.closePath();
+
 
         this._renderPaintInOrder(ctx);
         this.callSuper('_render', ctx);

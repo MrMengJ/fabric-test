@@ -1,9 +1,9 @@
 import { fabric } from 'fabric';
 
 import { DIRECTION } from '../constants/shapes';
-import Text from "../objects/Text";
+import Text from '../objects/Text';
 
-export const Role = fabric.util.createClass(Text, {
+export const DataStore = fabric.util.createClass(Text, {
   isEditingText: false,
   scalePercent: 1,
   thumbnail: false,
@@ -17,9 +17,9 @@ export const Role = fabric.util.createClass(Text, {
   fill: '#fff',
   stroke: '#000',
   direction: DIRECTION.BOTTOM,
-  startColor: '#fcff7b',
-  endColor: '#ffffc6',
-  text:"角色",
+  startColor: '#fff',
+  endColor: '#fff',
+  text: '',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -27,12 +27,13 @@ export const Role = fabric.util.createClass(Text, {
       y = -this.height / 2;
 
     ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.lineTo(x + w, y);
-    ctx.lineTo(x + w, y + h);
-    ctx.lineTo(x, y + h);
-    ctx.lineTo(x, y);
-    ctx.closePath();
+    ctx.moveTo(x, y + h / 3 / 2);
+
+    ctx.lineTo(x, y + (h - h / 5));
+    ctx.bezierCurveTo(x + w * 0.1, y + h, x + w * 0.9, y + h, x + w, y + (h - h / 5));
+
+    ctx.lineTo(x + w, y + h / 3 / 2);
+    ctx.ellipse(x + w / 2, y + h / 3 / 2, w / 2, h / 3 / 2,0,0,2*Math.PI);
 
     this._renderPaintInOrder(ctx);
     this.callSuper('_render', ctx);

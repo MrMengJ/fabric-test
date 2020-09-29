@@ -1,8 +1,8 @@
 import { fabric } from 'fabric';
 import { DIRECTION } from '../constants/shapes';
-import Text from "../objects/Text";
+import IconText from "../objects/IconText";
 
-export const Activity = fabric.util.createClass(Text, {
+export const Activity = fabric.util.createClass(IconText, {
   isEditingText: false,
   scalePercent: 1,
   thumbnail: false,
@@ -30,55 +30,19 @@ export const Activity = fabric.util.createClass(Text, {
       isRounded = rx !== 0 || ry !== 0,
       k = 1 - 0.5522847498;
 
-    const getGradientParam = () => {
-      switch (this.direction) {
-        case DIRECTION.TOP:
-          return [x, y + h, x, y];
-        case DIRECTION.TOP_RIGHT:
-          return [x, y + h, x + w, y];
-        case DIRECTION.TOP_LEFT:
-          return [x + w, y + h, x, y];
-        case DIRECTION.LEFT:
-          return [x + w, y, x, y];
-        case DIRECTION.RIGHT:
-          return [x, y, x + w, y];
-        case DIRECTION.BOTTOM:
-          return [x, y, x, y + h];
-        case DIRECTION.BOTTOM_LEFT:
-          return [x + w, y, x, y + h];
-        case DIRECTION.BOTTOM_RIGHT:
-          return [x, y, x + w, y + h];
-        default:
-          return [x, y, x, y + h];
-      }
-    };
-
-    //默认渐变
-    const gradientParam = getGradientParam();
-    let gradient = ctx.createLinearGradient(...gradientParam);
-    gradient.addColorStop(0, this.startColor);
-    gradient.addColorStop(1, this.endColor);
-    ctx.fillStyle = gradient;
     ctx.beginPath();
-
     ctx.moveTo(x + rx, y);
-
     ctx.lineTo(x + w - rx, y);
     isRounded && ctx.bezierCurveTo(x + w - k * rx, y, x + w, y + k * ry, x + w, y + ry);
-
     ctx.lineTo(x + w, y + h - ry);
     isRounded &&
       ctx.bezierCurveTo(x + w, y + h - k * ry, x + w - k * rx, y + h, x + w - rx, y + h);
-
     ctx.lineTo(x + rx, y + h);
     isRounded && ctx.bezierCurveTo(x + k * rx, y + h, x, y + h - k * ry, x, y + h - ry);
-
     ctx.lineTo(x, y + ry);
     isRounded && ctx.bezierCurveTo(x, y + k * ry, x + k * rx, y, x + rx, y);
-
     ctx.moveTo(x, y + h / 3);
     ctx.lineTo(x + w, y + h / 3);
-
     ctx.closePath();
 
     this._renderPaintInOrder(ctx);
