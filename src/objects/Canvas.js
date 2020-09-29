@@ -340,7 +340,7 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @since 1.6.5
    * @default
    */
-  stopContextMenu: false,
+  stopContextMenu: true,
 
   /**
    * Indicates if the canvas can fire right click events
@@ -348,7 +348,7 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @since 1.6.5
    * @default
    */
-  fireRightClick: false,
+  fireRightClick: true,
 
   /**
    * Indicates if the canvas can fire middle click events
