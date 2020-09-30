@@ -620,7 +620,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         isDragStartPort,
         isDragEndPort,
         draggingControlPoint,
-        draggingLine
+        draggingLine,
+        pointer
       );
       this.canvas._isDraggingConnectionLine = true;
       if (!this.selected) {
@@ -667,7 +668,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       // line cursor
       const line = this._linesContainsPoint(point);
       if (line) {
-        const cursor = 'pointer';
+        const cursor = 'move';
         this.canvas.setCursor(cursor);
       }
     }
@@ -780,6 +781,27 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.canvas.requestRenderAll();
   },
 
+  /**
+   * Handler when drag line path
+   * @param point point of mouse coordinates
+   */
+  _handleDragLinePath: function (point) {
+    const { startDraggingPoint, originalPoints } = this._draggingObject;
+    const distance = {
+      x: point.x - startDraggingPoint.x,
+      y: point.y - startDraggingPoint.y,
+    };
+    this.points = map(originalPoints, (item) => {
+      return {
+        x: item.x + distance.x,
+        y: item.y + distance.y,
+      };
+    });
+    this.fromPoint = head(this.points);
+    this.toPoint = last(this.points);
+    this.canvas.requestRenderAll();
+  },
+
   _canvasMouseMoveHandler: function (options) {
     this._setHoverCursor(options.pointer);
     if (this._isDragging) {
@@ -805,6 +827,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this._updatePoints();
       } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.controlPoint) {
         this._handleDragControlPoint(point);
+      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.line) {
+        this._handleDragLinePath(point);
       }
     }
   },
@@ -1039,9 +1063,17 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     isDragStartPort,
     isDragEndPort,
     draggingControlPoint,
-    draggingLine
+    draggingLine,
+    draggingPoint
   ) {
-    let result = {};
+    const zoom = this.canvas.getZoom();
+    const startDraggingPoint = {
+      x: draggingPoint.x / zoom,
+      y: draggingPoint.y / zoom,
+    };
+    let result = {
+      startDraggingPoint,
+    };
     if (isDragStartPort) {
       result.type = DRAGGING_OBJECT_TYPE.startPort;
     } else if (isDragEndPort) {
@@ -1051,6 +1083,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     } else if (draggingLine) {
       result.type = DRAGGING_OBJECT_TYPE.line;
       result.line = draggingLine;
+      result.originalPoints = this.points;
     }
     this._draggingObject = result;
   },
@@ -1062,14 +1095,16 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     isDragStartPort,
     isDragEndPort,
     draggingControlPoint,
-    draggingLine
+    draggingLine,
+    draggingPoint
   ) {
     this._isDragging = true;
     this._setDraggingObject(
       isDragStartPort,
       isDragEndPort,
       draggingControlPoint,
-      draggingLine
+      draggingLine,
+      draggingPoint
     );
   },
 
