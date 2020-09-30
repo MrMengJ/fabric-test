@@ -14,6 +14,7 @@ import {
   filter,
   cloneDeep,
   get,
+  isEmpty,
 } from 'lodash';
 
 import BaseObject from './BaseObject';
@@ -192,9 +193,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {Object} [options] Options object
    * @return {fabric.Polyline} thisArg
    */
-  initialize: function (points, options) {
+  initialize: function (options) {
     options = options || {};
-    this.points = points || [];
 
     this.__skipDimension = true;
     this.callSuper('initialize', options);
@@ -203,6 +203,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.initDimensions();
     this.initTextBehavior();
 
+    this._initPoints();
     this._initDirection();
     this.initBehavior();
   },
@@ -410,6 +411,22 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
     this.toDirection = toDirection;
     return toDirection;
+  },
+
+  /**
+   * initialize points
+   * @private
+   */
+  _initPoints: function () {
+    if (!isEmpty(this.points)) {
+      return;
+    }
+    this.points = this._createManhattanRoute(
+      this.fromPoint,
+      this.fromDirection,
+      this.toPoint,
+      this.toDirection
+    );
   },
 
   /**
