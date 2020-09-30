@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@blueprintjs/core": "^3.32.1",
+    "cra-template": "1.0.3",
     "fabric": "^4.1.0",
-    "styled-components": "^4.4.1",
     "lodash": "^4.17.15",
     "prop-types": "^15.6.2",
-    "cra-template": "1.0.3",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
-    "react-scripts": "3.4.3"
+    "react-scripts": "3.4.3",
+    "styled-components": "^4.4.1"
   },
   "scripts": {
     "start": "react-scripts start",
