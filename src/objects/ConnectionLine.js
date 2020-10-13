@@ -2077,7 +2077,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         maxWidth = currentLineWidth;
       }
     }
-    return maxWidth;
+    return max([maxWidth, this.fontSize * this.lineHeight * 2]);
   },
 
   /**
@@ -2413,9 +2413,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _renderTextBackground: function (ctx) {
-    if (!this.text || !this.textStyle.backgroundColor) {
+    if (!this.textStyle.backgroundColor || (!this.text && !this._isEditingText)) {
       return;
     }
+
     ctx.save();
     ctx.fillStyle = this.textStyle.backgroundColor;
     const textPosition = this._getTextCoords();
@@ -2789,7 +2790,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       lineHeight = this.getHeightOfLine(i);
       height += i === len - 1 ? lineHeight / this.lineHeight : lineHeight;
     }
-    return height;
+    return max([height, this.fontSize * this.lineHeight]);
   },
 
   /**
