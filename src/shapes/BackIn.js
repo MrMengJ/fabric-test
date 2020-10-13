@@ -20,6 +20,7 @@ export const BackIn = fabric.util.createClass(Text, {
   startColor: '#9aff9a',
   endColor: '#9aff9a',
   text: '',
+  type:'BackIn',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -40,3 +41,9 @@ export const BackIn = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+BackIn.fromObject = (options, callback) => {
+  return callback(new BackIn(options));
+};
+
+window.fabric.BackIn = BackIn;

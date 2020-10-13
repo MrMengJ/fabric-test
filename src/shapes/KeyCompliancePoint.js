@@ -22,6 +22,7 @@ export const KeyCompliancePoint = fabric.util.createClass(Text, {
   startColor: '#fff',
   endColor: '#fff',
   text: 'KCP',
+  type:'KeyCompliancePoint',
   _render: function (ctx) {
     let x = this.x,
       y = this.y,
@@ -38,3 +39,9 @@ export const KeyCompliancePoint = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+KeyCompliancePoint.fromObject = (options, callback) => {
+  return callback(new KeyCompliancePoint(options));
+};
+
+window.fabric.KeyCompliancePoint = KeyCompliancePoint;

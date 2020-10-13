@@ -1,6 +1,6 @@
 import { fabric } from 'fabric';
 import { DIRECTION } from '../constants/shapes';
-import IconText from "../objects/IconText";
+import IconText from '../objects/IconText';
 
 export const Activity = fabric.util.createClass(IconText, {
   isEditingText: false,
@@ -20,6 +20,7 @@ export const Activity = fabric.util.createClass(IconText, {
   direction: DIRECTION.BOTTOM,
   startColor: '#71afff',
   endColor: '#bddaff',
+  type:'Activity',
   _render: function (ctx) {
     let rx = this.rx ? Math.min(this.rx, this.width / 2) : 0,
       ry = this.ry ? Math.min(this.ry, this.height / 2) : 0,
@@ -49,3 +50,9 @@ export const Activity = fabric.util.createClass(IconText, {
     this.callSuper('_render', ctx);
   },
 });
+
+Activity.fromObject = (options, callback) => {
+  return callback(new Activity(options));
+};
+
+window.fabric.Activity = Activity;

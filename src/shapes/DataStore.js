@@ -20,6 +20,7 @@ export const DataStore = fabric.util.createClass(Text, {
   startColor: '#fff',
   endColor: '#fff',
   text: '',
+  type:'DataStore',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -39,3 +40,9 @@ export const DataStore = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+DataStore.fromObject = (options, callback) => {
+  return callback(new DataStore(options));
+};
+
+window.fabric.DataStore = DataStore;

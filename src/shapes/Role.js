@@ -20,6 +20,7 @@ export const Role = fabric.util.createClass(Text, {
   startColor: '#fcff7b',
   endColor: '#ffffc6',
   text:"角色",
+  type:'Role',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -38,3 +39,9 @@ export const Role = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+Role.fromObject = (options, callback) => {
+  return callback(new Role(options));
+};
+
+window.fabric.Role = Role;

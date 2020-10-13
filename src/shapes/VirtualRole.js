@@ -19,6 +19,7 @@ export const VirtualRole = fabric.util.createClass(Text, {
     startColor: '#fcff7b',
     endColor: '#ffffc6',
     text:"虚拟角色",
+    type:'VirtualRole',
     _render: function (ctx) {
         let w = this.width,
             h = this.height,
@@ -38,3 +39,9 @@ export const VirtualRole = fabric.util.createClass(Text, {
         this.callSuper('_render', ctx);
     },
 });
+
+VirtualRole.fromObject = (options, callback) => {
+    return callback(new VirtualRole(options));
+};
+
+window.fabric.VirtualRole = VirtualRole;

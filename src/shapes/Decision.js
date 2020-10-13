@@ -20,6 +20,7 @@ export const Decision = fabric.util.createClass(Text, {
   startColor: '#fcff7b',
   endColor: '#ffffc6',
   text: '决策',
+  type:'Decision',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -39,3 +40,9 @@ export const Decision = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+Decision.fromObject = (options, callback) => {
+  return callback(new Decision(options));
+};
+
+window.fabric.Decision = Decision;

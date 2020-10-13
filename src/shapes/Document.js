@@ -20,6 +20,7 @@ export const Document = fabric.util.createClass(Text, {
   startColor: '#ffff00',
   endColor: '#ffff00',
   text: '文档',
+  type: 'Document',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -46,3 +47,9 @@ export const Document = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+Document.fromObject = (options, callback) => {
+  return callback(new Document(options));
+};
+
+window.fabric.Document = Document;

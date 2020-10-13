@@ -16,6 +16,7 @@ export const CooperatingGroup = fabric.util.createClass(Text, {
     fill: '#fff',
     stroke: '#000',
     text:"协作框",
+    type:'CooperatingGroup',
     _render: function (ctx) {
         let w = this.width,
             h = this.height,
@@ -34,3 +35,9 @@ export const CooperatingGroup = fabric.util.createClass(Text, {
         this.callSuper('_render', ctx);
     },
 });
+
+CooperatingGroup.fromObject = (options, callback) => {
+    return callback(new CooperatingGroup(options));
+};
+
+window.fabric.CooperatingGroup = CooperatingGroup;

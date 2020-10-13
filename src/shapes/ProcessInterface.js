@@ -20,6 +20,7 @@ export const ProcessInterface = fabric.util.createClass(Text, {
   startColor: '#fff',
   endColor: '#fff',
   text: '',
+  type:'ProcessInterface',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -69,3 +70,9 @@ export const ProcessInterface = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+ProcessInterface.fromObject = (options, callback) => {
+  return callback(new ProcessInterface(options));
+};
+
+window.fabric.ProcessInterface = ProcessInterface;

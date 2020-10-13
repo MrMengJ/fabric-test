@@ -1,6 +1,6 @@
 import { fabric } from 'fabric';
 import { DIRECTION } from '../constants/shapes';
-import Text from "../objects/Text";
+import Text from '../objects/Text';
 
 export const From = fabric.util.createClass(Text, {
   isEditingText: false,
@@ -19,9 +19,9 @@ export const From = fabric.util.createClass(Text, {
   direction: DIRECTION.BOTTOM,
   startColor: '#71afff',
   endColor: '#71afff',
-    text:"From",
+  text: 'From',
+  type: 'From',
   _render: function (ctx) {
-
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.stroke();
@@ -31,3 +31,9 @@ export const From = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+From.fromObject = (options, callback) => {
+  return callback(new From(options));
+};
+
+window.fabric.From = From;

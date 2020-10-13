@@ -20,6 +20,7 @@ export const Customer = fabric.util.createClass(Text, {
     startColor: '#9494ff',
     endColor: '#cacaff',
     text:"客户",
+    type:'Customer',
     _render: function (ctx) {
         let w = this.width,
             h = this.height,
@@ -38,3 +39,9 @@ export const Customer = fabric.util.createClass(Text, {
         this.callSuper('_render', ctx);
     },
 });
+
+Customer.fromObject = (options, callback) => {
+    return callback(new Customer(options));
+};
+
+window.fabric.Customer = Customer;

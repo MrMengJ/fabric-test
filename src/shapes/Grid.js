@@ -15,6 +15,7 @@ export const Grid = fabric.util.createClass(fabric.Object, {
   selectable: false,
   evented: false,
   grid: 20,
+  type:'Grid',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -55,3 +56,9 @@ export const Grid = fabric.util.createClass(fabric.Object, {
     this.callSuper('_render', ctx);
   },
 });
+
+Grid.fromObject = (options, callback) => {
+  return callback(new Grid(options));
+};
+
+window.fabric.Grid = Grid;

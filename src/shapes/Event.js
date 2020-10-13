@@ -20,6 +20,7 @@ export const Event = fabric.util.createClass(Text, {
   startColor: '#ffd7ff',
   endColor: '#ffd7ff',
   text: '',
+  type:'Event',
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
@@ -41,3 +42,9 @@ export const Event = fabric.util.createClass(Text, {
     this.callSuper('_render', ctx);
   },
 });
+
+Event.fromObject = (options, callback) => {
+  return callback(new Event(options));
+};
+
+window.fabric.Event = Event;
