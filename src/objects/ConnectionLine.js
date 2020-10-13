@@ -276,8 +276,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   render: function (ctx) {
     this.callSuper('render', ctx);
     this.cursorOffsetCache = {};
-    this._renderTextBoxCursor();
-    this._renderTextBoxSelection();
+    this._renderTextBoxSelectionOrCursor();
   },
 
   /**
@@ -839,6 +838,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _canvasMouseMoveHandler: function (options) {
+    // TODO 记得添加对文本的处理
     this._setHoverCursor(options.pointer);
     if (this._isDragging) {
       const notDrag =
@@ -895,8 +895,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this.selectAll();
       }
     }
-    this._renderTextBoxCursor();
-    this._renderTextBoxSelection();
+    this._renderTextBoxSelectionOrCursor();
   },
 
   /**
@@ -1484,7 +1483,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     'text',
     'charSpacing',
     'textAlign',
-    'styles',
   ],
 
   /**
@@ -2942,7 +2940,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       // if i press an arrow key just update selection
       this.inCompositionMode = false;
       this.clearContextTop();
-      this.renderCursorOrSelection();
+      this._renderTextBoxSelectionOrCursor();
     } else {
       this.canvas && this.canvas.requestRenderAll();
     }
@@ -2990,9 +2988,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       selectionStart = this.selectionStart,
       selectionEnd = this.selectionEnd,
       selection = selectionStart !== selectionEnd,
-      copiedStyle,
-      removeFrom,
-      removeTo;
+      copiedStyle;
     if (this.hiddenTextarea.value === '') {
       this.textStyles = {};
       this.updateFromTextArea();
@@ -3038,18 +3034,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
           return copiedStyle[0];
         });
       }
-      if (selection) {
-        removeFrom = selectionStart;
-        removeTo = selectionEnd;
-      } else if (backDelete) {
-        // detect differencies between forwardDelete and backDelete
-        removeFrom = selectionEnd - removedText.length;
-        removeTo = selectionEnd;
-      } else {
-        removeFrom = selectionEnd;
-        removeTo = selectionEnd + removedText.length;
-      }
-      this.removeStyleFromTo(removeFrom, removeTo);
     }
     if (insertedText.length) {
       if (
@@ -3059,7 +3043,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       ) {
         copiedStyle = fabric.copiedTextStyle;
       }
-      this.insertNewStyleBlock(insertedText, selectionStart, copiedStyle);
     }
     this.updateFromTextArea();
     this.fire('changed');
@@ -3067,6 +3050,44 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       this.canvas.fire('text:changed', { target: this });
       this.canvas.requestRenderAll();
     }
+  },
+
+  /**
+   * @private
+   */
+  updateFromTextArea: function () {
+    if (!this.hiddenTextarea) {
+      return;
+    }
+    this.cursorOffsetCache = {};
+    this.text = this.hiddenTextarea.value;
+    if (this._shouldClearDimensionCache()) {
+      this.initDimensions();
+      this.setCoords();
+    }
+    var newSelection = this.fromStringToGraphemeSelection(
+      this.hiddenTextarea.selectionStart,
+      this.hiddenTextarea.selectionEnd,
+      this.hiddenTextarea.value
+    );
+    this.selectionEnd = this.selectionStart = newSelection.selectionEnd;
+    if (!this.inCompositionMode) {
+      this.selectionStart = newSelection.selectionStart;
+    }
+    this.updateTextareaPosition();
+  },
+
+  /**
+   * @private
+   */
+  _shouldClearDimensionCache: function () {
+    var shouldClear = this._forceClearCache;
+    shouldClear || (shouldClear = this.hasStateChanged('_dimensionAffectingProps'));
+    if (shouldClear) {
+      this.dirty = true;
+      this._forceClearCache = false;
+    }
+    return shouldClear;
   },
 
   /**
@@ -3200,6 +3221,413 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    */
   _getClipboardData: function (e) {
     return (e && e.clipboardData) || fabric.window.clipboardData;
+  },
+
+  /**
+   * private
+   * Helps finding if the offset should be counted from Start or End
+   * @param {Event} e Event object
+   * @param {Boolean} isRight
+   * @return {Number}
+   */
+  _getSelectionForOffset: function (e, isRight) {
+    if (e.shiftKey && this.selectionStart !== this.selectionEnd && isRight) {
+      return this.selectionEnd;
+    } else {
+      return this.selectionStart;
+    }
+  },
+
+  /**
+   * Finds the width in pixels before the cursor on the same line
+   * @private
+   * @param {Number} lineIndex
+   * @param {Number} charIndex
+   * @return {Number} widthBeforeCursor width before cursor
+   */
+  _getWidthBeforeCursor: function (lineIndex, charIndex) {
+    var widthBeforeCursor = this._getLineLeftOffset(lineIndex),
+      bound;
+
+    if (charIndex > 0) {
+      bound = this.__charBounds[lineIndex][charIndex - 1];
+      widthBeforeCursor += bound.left + bound.width;
+    }
+    return widthBeforeCursor;
+  },
+
+  /**
+   * for a given width it founds the matching character.
+   * @private
+   */
+  _getIndexOnLine: function (lineIndex, width) {
+    var line = this._textLines[lineIndex],
+      lineLeftOffset = this._getLineLeftOffset(lineIndex),
+      widthOfCharsOnLine = lineLeftOffset,
+      indexOnLine = 0,
+      charWidth,
+      foundMatch;
+
+    for (var j = 0, jlen = line.length; j < jlen; j++) {
+      charWidth = this.__charBounds[lineIndex][j].width;
+      widthOfCharsOnLine += charWidth;
+      if (widthOfCharsOnLine > width) {
+        foundMatch = true;
+        var leftEdge = widthOfCharsOnLine - charWidth,
+          rightEdge = widthOfCharsOnLine,
+          offsetFromLeftEdge = Math.abs(leftEdge - width),
+          offsetFromRightEdge = Math.abs(rightEdge - width);
+
+        indexOnLine = offsetFromRightEdge < offsetFromLeftEdge ? j : j - 1;
+        break;
+      }
+    }
+
+    // reached end
+    if (!foundMatch) {
+      indexOnLine = line.length - 1;
+    }
+
+    return indexOnLine;
+  },
+
+  /**
+   * @param {Event} e Event object
+   * @param {Boolean} isRight
+   * @return {Number}
+   */
+  getUpCursorOffset: function (e, isRight) {
+    var selectionProp = this._getSelectionForOffset(e, isRight),
+      cursorLocation = this.get2DCursorLocation(selectionProp),
+      lineIndex = cursorLocation.lineIndex;
+    if (lineIndex === 0 || e.metaKey || e.keyCode === 33) {
+      // if on first line, up cursor goes to start of line
+      return -selectionProp;
+    }
+    var charIndex = cursorLocation.charIndex,
+      widthBeforeCursor = this._getWidthBeforeCursor(lineIndex, charIndex),
+      indexOnOtherLine = this._getIndexOnLine(lineIndex - 1, widthBeforeCursor),
+      textBeforeCursor = this._textLines[lineIndex].slice(0, charIndex),
+      missingNewlineOffset = this.missingNewlineOffset(lineIndex - 1);
+    // return a negative offset
+    return (
+      -this._textLines[lineIndex - 1].length +
+      indexOnOtherLine -
+      textBeforeCursor.length +
+      (1 - missingNewlineOffset)
+    );
+  },
+
+  /**
+   * Gets start offset of a selection
+   * @param {Event} e Event object
+   * @param {Boolean} isRight
+   * @return {Number}
+   */
+  getDownCursorOffset: function (e, isRight) {
+    var selectionProp = this._getSelectionForOffset(e, isRight),
+      cursorLocation = this.get2DCursorLocation(selectionProp),
+      lineIndex = cursorLocation.lineIndex;
+    // if on last line, down cursor goes to end of line
+    if (lineIndex === this._textLines.length - 1 || e.metaKey || e.keyCode === 34) {
+      // move to the end of a text
+      return this._text.length - selectionProp;
+    }
+    var charIndex = cursorLocation.charIndex,
+      widthBeforeCursor = this._getWidthBeforeCursor(lineIndex, charIndex),
+      indexOnOtherLine = this._getIndexOnLine(lineIndex + 1, widthBeforeCursor),
+      textAfterCursor = this._textLines[lineIndex].slice(charIndex);
+    return (
+      textAfterCursor.length + indexOnOtherLine + 1 + this.missingNewlineOffset(lineIndex)
+    );
+  },
+
+  /**
+   * Moves cursor down
+   * @param {Event} e Event object
+   */
+  moveCursorDown: function (e) {
+    if (
+      this.selectionStart >= this._text.length &&
+      this.selectionEnd >= this._text.length
+    ) {
+      return;
+    }
+    this._moveCursorUpOrDown('Down', e);
+  },
+
+  /**
+   * Moves cursor up
+   * @param {Event} e Event object
+   */
+  moveCursorUp: function (e) {
+    if (this.selectionStart === 0 && this.selectionEnd === 0) {
+      return;
+    }
+    this._moveCursorUpOrDown('Up', e);
+  },
+
+  /**
+   * Moves cursor up or down, fires the events
+   * @param {String} direction 'Up' or 'Down'
+   * @param {Event} e Event object
+   */
+  _moveCursorUpOrDown: function (direction, e) {
+    // getUpCursorOffset
+    // getDownCursorOffset
+    const action = 'get' + direction + 'CursorOffset';
+    const offset = this[action](e, this._selectionDirection === 'right');
+    if (e.shiftKey) {
+      this.moveCursorWithShift(offset);
+    } else {
+      this.moveCursorWithoutShift(offset);
+    }
+    if (offset !== 0) {
+      this.setSelectionInBoundaries();
+      this.abortCursorAnimation();
+      this._currentCursorOpacity = 1;
+      this.initDelayedCursor();
+      this._fireSelectionChanged();
+      this._updateTextarea();
+    }
+  },
+
+  /**
+   * Moves cursor with shift
+   * @param {Number} offset
+   */
+  moveCursorWithShift: function (offset) {
+    const newSelection =
+      this._selectionDirection === 'left'
+        ? this.selectionStart + offset
+        : this.selectionEnd + offset;
+    this.setSelectionStartEndWithShift(
+      this.selectionStart,
+      this.selectionEnd,
+      newSelection
+    );
+    return offset !== 0;
+  },
+
+  /**
+   * Moves cursor up without shift
+   * @param {Number} offset
+   */
+  moveCursorWithoutShift: function (offset) {
+    if (offset < 0) {
+      this.selectionStart += offset;
+      this.selectionEnd = this.selectionStart;
+    } else {
+      this.selectionEnd += offset;
+      this.selectionStart = this.selectionEnd;
+    }
+    return offset !== 0;
+  },
+
+  /**
+   * Moves cursor left
+   * @param {Event} e Event object
+   */
+  moveCursorLeft: function (e) {
+    if (this.selectionStart === 0 && this.selectionEnd === 0) {
+      return;
+    }
+    this._moveCursorLeftOrRight('Left', e);
+  },
+
+  /**
+   * @private
+   * @return {Boolean} true if a change happened
+   */
+  _move: function (e, prop, direction) {
+    var newValue;
+    if (e.altKey) {
+      newValue = this['findWordBoundary' + direction](this[prop]);
+    } else if (e.metaKey || e.keyCode === 35 || e.keyCode === 36) {
+      newValue = this['findLineBoundary' + direction](this[prop]);
+    } else {
+      this[prop] += direction === 'Left' ? -1 : 1;
+      return true;
+    }
+    if (typeof newValue !== undefined && this[prop] !== newValue) {
+      this[prop] = newValue;
+      return true;
+    }
+  },
+
+  /**
+   * @private
+   */
+  _moveLeft: function (e, prop) {
+    return this._move(e, prop, 'Left');
+  },
+
+  /**
+   * @private
+   */
+  _moveRight: function (e, prop) {
+    return this._move(e, prop, 'Right');
+  },
+
+  /**
+   * Moves cursor left without keeping selection
+   * @param {Event} e
+   */
+  moveCursorLeftWithoutShift: function (e) {
+    var change = true;
+    this._selectionDirection = 'left';
+
+    // only move cursor when there is no selection,
+    // otherwise we discard it, and leave cursor on same place
+    if (this.selectionEnd === this.selectionStart && this.selectionStart !== 0) {
+      change = this._moveLeft(e, 'selectionStart');
+    }
+    this.selectionEnd = this.selectionStart;
+    return change;
+  },
+
+  /**
+   * Moves cursor left while keeping selection
+   * @param {Event} e
+   */
+  moveCursorLeftWithShift: function (e) {
+    if (
+      this._selectionDirection === 'right' &&
+      this.selectionStart !== this.selectionEnd
+    ) {
+      return this._moveLeft(e, 'selectionEnd');
+    } else if (this.selectionStart !== 0) {
+      this._selectionDirection = 'left';
+      return this._moveLeft(e, 'selectionStart');
+    }
+  },
+
+  /**
+   * Moves cursor right
+   * @param {Event} e Event object
+   */
+  moveCursorRight: function (e) {
+    if (
+      this.selectionStart >= this._text.length &&
+      this.selectionEnd >= this._text.length
+    ) {
+      return;
+    }
+    this._moveCursorLeftOrRight('Right', e);
+  },
+
+  /**
+   * Moves cursor right or Left, fires event
+   * @param {String} direction 'Left', 'Right'
+   * @param {Event} e Event object
+   */
+  _moveCursorLeftOrRight: function (direction, e) {
+    var actionName = 'moveCursor' + direction + 'With';
+    this._currentCursorOpacity = 1;
+
+    if (e.shiftKey) {
+      actionName += 'Shift';
+    } else {
+      actionName += 'outShift';
+    }
+    if (this[actionName](e)) {
+      this.abortCursorAnimation();
+      this.initDelayedCursor();
+      this._fireSelectionChanged();
+      this._updateTextarea();
+    }
+  },
+
+  /**
+   * Moves cursor right while keeping selection
+   * @param {Event} e
+   */
+  moveCursorRightWithShift: function (e) {
+    if (
+      this._selectionDirection === 'left' &&
+      this.selectionStart !== this.selectionEnd
+    ) {
+      return this._moveRight(e, 'selectionStart');
+    } else if (this.selectionEnd !== this._text.length) {
+      this._selectionDirection = 'right';
+      return this._moveRight(e, 'selectionEnd');
+    }
+  },
+
+  /**
+   * Moves cursor right without keeping selection
+   * @param {Event} e Event object
+   */
+  moveCursorRightWithoutShift: function (e) {
+    var changed = true;
+    this._selectionDirection = 'right';
+
+    if (this.selectionStart === this.selectionEnd) {
+      changed = this._moveRight(e, 'selectionStart');
+      this.selectionEnd = this.selectionStart;
+    } else {
+      this.selectionStart = this.selectionEnd;
+    }
+    return changed;
+  },
+
+  /**
+   * Set the selectionStart and selectionEnd according to the new position of cursor
+   * mimic the key - mouse navigation when shift is pressed.
+   */
+  setSelectionStartEndWithShift: function (start, end, newSelection) {
+    if (newSelection <= start) {
+      if (end === start) {
+        this._selectionDirection = 'left';
+      } else if (this._selectionDirection === 'right') {
+        this._selectionDirection = 'left';
+        this.selectionEnd = start;
+      }
+      this.selectionStart = newSelection;
+    } else if (newSelection > start && newSelection < end) {
+      if (this._selectionDirection === 'right') {
+        this.selectionEnd = newSelection;
+      } else {
+        this.selectionStart = newSelection;
+      }
+    } else {
+      // newSelection is > selection start and end
+      if (end === start) {
+        this._selectionDirection = 'right';
+      } else if (this._selectionDirection === 'left') {
+        this._selectionDirection = 'right';
+        this.selectionStart = end;
+      }
+      this.selectionEnd = newSelection;
+    }
+  },
+
+  setSelectionInBoundaries: function () {
+    var length = this.text.length;
+    if (this.selectionStart > length) {
+      this.selectionStart = length;
+    } else if (this.selectionStart < 0) {
+      this.selectionStart = 0;
+    }
+    if (this.selectionEnd > length) {
+      this.selectionEnd = length;
+    } else if (this.selectionEnd < 0) {
+      this.selectionEnd = 0;
+    }
+  },
+
+  /**
+   * Initializes delayed cursor
+   */
+  initDelayedCursor: function (restart) {
+    var _this = this,
+      delay = restart ? 0 : this.cursorDelay;
+
+    this.abortCursorAnimation();
+    this._currentCursorOpacity = 1;
+    this._cursorTimeout2 = setTimeout(function () {
+      _this._tick();
+    }, delay);
   },
 
   /**
@@ -3399,7 +3827,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const zoom = this.canvas.getZoom();
     const textPosition = this._getTextCoords();
     ctx.save();
-    // ctx.transform(v[0], v[1], v[2], v[3], v[4], v[5]);
     ctx.transform(v[0], v[1], v[2], v[3], textPosition.x * zoom, textPosition.y * zoom);
     this.transform(ctx);
 
@@ -3420,21 +3847,27 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
   _textMouseDownHandlerBefore: function (options) {},
 
-  _renderTextBoxCursor: function () {
+  _renderTextBoxSelectionOrCursor: function () {
     if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
       return;
     }
-  },
 
-  _renderTextBoxSelection: function () {
-    if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
-      return;
-    }
     const boundaries = this._getCursorBoundaries();
-
     const ctx = this.canvas.contextTop;
     this.clearContextTop(true);
 
+    if (this.selectionStart === this.selectionEnd) {
+      this._renderTextBoxCursor(boundaries, ctx);
+    } else {
+      this._renderTextBoxSelection(boundaries, ctx);
+    }
+
+    ctx.restore();
+  },
+
+  _renderTextBoxCursor: function (boundaries, ctx) {},
+
+  _renderTextBoxSelection: function (boundaries, ctx) {
     const selectionStart = this.inCompositionMode
         ? this.hiddenTextarea.selectionStart
         : this.selectionStart,
@@ -3495,8 +3928,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
       boundaries.topOffset += realLineHeight;
     }
-
-    ctx.restore();
   },
 
   /**
@@ -3522,7 +3953,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       onChange: function () {
         // we do not want to animate a selection, only cursor
         if (obj.canvas && obj.selectionStart === obj.selectionEnd) {
-          obj._renderTextBoxCursor();
+          obj._renderTextBoxSelectionOrCursor();
         }
       },
       abort: function () {
@@ -3573,29 +4004,25 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       return;
     }
 
-    // if (this.canvas) {
-    //   this.canvas.calcOffset();
-    //   this.exitEditingOnOthers(this.canvas);
-    // }
+    if (this.canvas) {
+      this.canvas.calcOffset();
+    }
 
     this._isEditingText = true;
 
     this.initHiddenTextarea(e);
     this.hiddenTextarea.focus();
     this.hiddenTextarea.value = this.text;
-    // this._updateTextarea();
-    // this._saveEditingProps();
-    // this._setEditingProps();
-    // this._textBeforeEdit = this.text;
-    //
+    this._updateTextarea();
+    this._textBeforeEdit = this.text;
+
     this._tick();
-    // this.fire('editing:entered');
-    // this._fireSelectionChanged();
-    // if (!this.canvas) {
-    //   return this;
-    // }
-    // this.canvas.fire('text:editing:entered', { target: this });
-    // this.initMouseMoveHandler();
+    this.fire('editing:entered');
+    this._fireSelectionChanged();
+    if (!this.canvas) {
+      return this;
+    }
+    this.canvas.fire('text:editing:entered', { target: this });
     this.canvas.requestRenderAll();
     return this;
   },
@@ -3608,6 +4035,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   selectAll: function () {
     this.selectionStart = 0;
     this.selectionEnd = this._text.length;
+    this._fireSelectionChanged();
     this._updateTextarea();
     return this;
   },
@@ -3677,6 +4105,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @chainable
    */
   exitEditing: function () {
+    const isTextChanged = this._textBeforeEdit !== this.text;
     const hiddenTextarea = this.hiddenTextarea;
     this.selected = false;
     this._isEditingText = false;
@@ -3689,14 +4118,17 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
     this.hiddenTextarea = null;
     this.abortCursorAnimation();
-    // this._restoreEditingProps();
     this._currentCursorOpacity = 0;
-    // if (this._shouldClearDimensionCache()) {
-    //   this.initDimensions();
-    //   this.setCoords();
-    // }
+    if (this._shouldClearDimensionCache()) {
+      this.initDimensions();
+      this.setCoords();
+    }
+    this.fire('editing:exited');
+    isTextChanged && this.fire('modified');
     if (this.canvas) {
       // this.canvas.off('mouse:move', this.mouseMoveHandler);
+      this.canvas.fire('text:editing:exited', { target: this });
+      isTextChanged && this.canvas.fire('object:modified', { target: this });
     }
     return this;
   },
@@ -3736,6 +4168,15 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
 
     return map;
+  },
+
+  /**
+   * Fires the even of selection changed
+   * @private
+   */
+  _fireSelectionChanged: function () {
+    this.fire('selection:changed');
+    this.canvas && this.canvas.fire('text:selection:changed', { target: this });
   },
 });
 
