@@ -1,6 +1,7 @@
 import { fabric } from 'fabric';
 import { canvasContextMenu } from '../CanvasContextMenu';
 import { updateMiniMap, updateMiniMapVP } from '../helper/utils';
+import { TRANSACTION_TYPE } from '../constants/event';
 
 class EventHandler {
   constructor(Handler) {
@@ -19,6 +20,8 @@ class EventHandler {
         'mouse:move': this.mousemove,
         'mouse:down': this.mousedown,
         'mouse:up': this.mouseup,
+        'object:scaled': this.scaled,
+        'object:rotated': this.rotated,
         'mouse:wheel': this.mousewheel,
         'object:removed': this.removed,
       });
@@ -76,6 +79,9 @@ class EventHandler {
 
   moved = (opt) => {
     const { target } = opt;
+    if (!this.handler.transactionHandler.active) {
+      this.handler.transactionHandler.save(TRANSACTION_TYPE.MOVED);
+    }
     if (this.handler.gridOption.enabled) {
       this.handler.gridHandler.resizeGrid(target);
     }
@@ -151,6 +157,18 @@ class EventHandler {
   removed = (event) => {
     console.log('event');
     updateMiniMapVP(this.handler.canvas, this.handler.miniMap);
+  };
+
+  scaled = () => {
+    if (!this.handler.transactionHandler.active) {
+      this.handler.transactionHandler.save(TRANSACTION_TYPE.SCALED);
+    }
+  };
+
+  rotated = () => {
+    if (!this.handler.transactionHandler.active) {
+      this.handler.transactionHandler.save(TRANSACTION_TYPE.ROTATED);
+    }
   };
 
   mousewheel = (event) => {

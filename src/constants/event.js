@@ -27,6 +27,26 @@ export const KEY_CODES = {
   DELETE: 46
 };
 
+export const TRANSACTION_TYPE = {
+  ADD:'ADD',
+  REMOVE:'REMOVE',
+  MOVED:'MOVED',
+  SCALED:'SCALED',
+  ROTATED:'ROTATED',
+  SKEWED:'SKEWED',
+  GROUP:'GROUP',
+  UNGROUP:'UNGROUP',
+  PASTE:'PASTE',
+  BRING_FORWARD:'BRING_FORWARD',
+  BRING_TO_FRONT:'BRING_TO_FRONT',
+  SEND_BACKWARDS:'SEND_BACKWARDS',
+  SEND_TO_BACK:'SEND_TO_BACK',
+  REDO:'REDO',
+  UNDO:'UNDO'
+};
+
+export const propertiesToInclude = ['id', 'type', 'startColor', 'endColor', 'direction', 'gradient','textAlign','verticalAlign','width','height'];
+
 export const isLeftMouseClick = event => {
   return event.button === 0;
 };
