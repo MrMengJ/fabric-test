@@ -167,8 +167,7 @@ class EventHandler {
   };
 
   removed = (event) => {
-    console.log('event');
-    updateMiniMapVP(this.handler.canvas, this.handler.miniMap);
+      updateMiniMap(this.handler.canvas, this.handler.miniMap);
   };
 
   scaled = () => {
