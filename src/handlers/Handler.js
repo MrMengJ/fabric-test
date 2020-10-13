@@ -45,11 +45,10 @@ class Handler {
   copy = () => {
     const activeObject = this.canvas.getActiveObject();
     if (activeObject) {
-      const cloned = cloneDeep(activeObject);
       // activeObject.clone((cloned) => {
       //   this.clipboard = cloned;
       // });
-      this.clipboard = cloned;
+      this.clipboard = cloneDeep(activeObject);
     }
     return true;
   };
@@ -146,6 +145,33 @@ class Handler {
       return obj.type !== 'grid';
 
     });
+  };
+
+  selectAll = () => {
+    this.canvas.discardActiveObject();
+    const filteredObjects = this.canvas.getObjects().filter((obj) => {
+      if (obj.type === 'grid') {
+        return false;
+      } else if (!obj.evented) {
+        return false;
+      }  else if (obj.locked) {
+        return false;
+      }
+      return true;
+    });
+    if (!filteredObjects.length) {
+      return;
+    }
+    if (filteredObjects.length === 1) {
+      this.canvas.setActiveObject(filteredObjects[0]);
+      this.canvas.renderAll();
+      return;
+    }
+    const activeSelection = new fabric.ActiveSelection(filteredObjects, {
+      canvas: this.canvas
+    });
+    this.canvas.setActiveObject(activeSelection);
+    this.canvas.renderAll();
   };
 
   destroy = () => {
