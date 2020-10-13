@@ -89,21 +89,33 @@ class EventHandler {
 
   keydown = (e) => {
     const { editable } = this.handler;
-    if (e.keyCode === 32) {
-      e.preventDefault();
-      this.handler.interactionHandler.grab();
-    } else if (e.ctrlKey && e.keyCode === 67) {
-      e.preventDefault();
-      this.handler.copy();
-    } else if (e.ctrlKey && e.keyCode === 86) {
-      e.preventDefault();
-      this.handler.paste();
-    } else if (e.keyCode === 8 || e.keyCode === 46) {
-      e.preventDefault();
-      this.handler.remove();
-    } else if (e.ctrlKey && e.keyCode === 88) {
-      e.preventDefault();
-      this.handler.cut();
+    const { isEditing } = this.handler.canvas;
+    if(!isEditing){
+      if (e.keyCode === 32) {  //Space
+        e.preventDefault();
+        this.handler.interactionHandler.grab();
+      } else if (e.ctrlKey && e.keyCode === 67) {  //Ctrl C
+        e.preventDefault();
+        this.handler.copy();
+      } else if (e.ctrlKey && e.keyCode === 86) { //Ctrl V
+        e.preventDefault();
+        this.handler.paste();
+      } else if (e.keyCode === 8 || e.keyCode === 46) { //Del || Back
+        e.preventDefault();
+        this.handler.remove();
+      } else if (e.ctrlKey && e.keyCode === 88) { //Ctrl X
+        e.preventDefault();
+        this.handler.cut();
+      } else if (e.ctrlKey && e.keyCode === 90) { //Ctrl Z
+        e.preventDefault();
+        this.handler.transactionHandler.undo();
+      }else if (e.ctrlKey && e.keyCode === 89){ //Ctrl Y
+        e.preventDefault();
+        this.handler.transactionHandler.redo();
+      }else if(e.ctrlKey && e.keyCode === 65){ //Ctrl A
+        e.preventDefault();
+        this.handler.selectAll();
+      }
     }
   };
 

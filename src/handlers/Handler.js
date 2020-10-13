@@ -1,10 +1,15 @@
-import { GridOption, GuidelineOption } from '../helper/utils';
+import {cloneDeep, has} from 'lodash';
+import {fabric} from 'fabric';
+
+import {GridOption, GuidelineOption, updateMiniMap} from '../helper/utils';
+import {TRANSACTION_TYPE} from '../constants/event';
+
 import AlignmentLineHandler from './AlignmentLineHandler';
 import EventHandler from './EventHandler';
 import GridHandler from './GridHandler';
 import InteractionHandler from './InteractionHandler';
 import ZoomHandler from './ZoomHandler';
-import { cloneDeep, has } from 'lodash';
+import TransactionHandler from './TransactionHandler';
 
 class Handler {
   guidelineOption = GuidelineOption;
@@ -34,6 +39,7 @@ class Handler {
     this.gridHandler = new GridHandler(this);
     this.interactionHandler = new InteractionHandler(this);
     this.zoomHandler = new ZoomHandler(this);
+    this.transactionHandler = new TransactionHandler(this);
   };
 
   copy = () => {
@@ -75,23 +81,24 @@ class Handler {
       } else {
         this.canvas.add(clonedObj);
       }
-
       const newClipboard = clipboard.set({
         top: clonedObj.top,
         left: clonedObj.left,
       });
       this.clipboard = this.isCut ? null : newClipboard;
-
-      //撤销恢复
-      // if (!this.transactionHandler.active) {
-      //         this.transactionHandler.save('paste');
-      //        }
+      clonedObj.setCoords(); // before the resize Grid
+      if (this.gridOption.enabled) {
+        this.gridHandler.resizeGrid(clonedObj);
+      }
       if (onAdd) {
         onAdd(clonedObj);
       }
-      clonedObj.setCoords();
       this.canvas.setActiveObject(clonedObj);
       this.canvas.requestRenderAll();
+      updateMiniMap(this.canvas, this.miniMap);
+      if (!this.transactionHandler.active) {
+        this.transactionHandler.save(TRANSACTION_TYPE.PASTE);
+      }
       return true;
     }
   };
@@ -117,14 +124,28 @@ class Handler {
     this.isCut = true;
   };
 
-  getObjects = () => {
-    const objects = this.canvas.getObjects().filter(obj => {
-        if(obj.type === 'grid'){
-            return false
+  clear = (includeWorkarea = false) => {
+    if (includeWorkarea) {
+      this.canvas.clear();
+      this.workarea = null;
+    } else {
+      this.canvas.discardActiveObject();
+      this.canvas.getObjects().forEach((obj: any) => {
+        if (obj.type === 'grid') {
+          return;
         }
-        return true;
+        this.canvas.remove(obj);
+      });
+    }
+    this.objects = this.getObjects();
+    this.canvas.renderAll();
+  };
+
+  getObjects = () => {
+    return this.canvas.getObjects().filter((obj) => {
+      return obj.type !== 'grid';
+
     });
-    return objects;
   };
 
   destroy = () => {
