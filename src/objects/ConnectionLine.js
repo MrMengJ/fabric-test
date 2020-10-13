@@ -41,6 +41,7 @@ const DRAGGING_OBJECT_TYPE = {
   endPort: 'endPort',
   controlPoint: 'controlPoint',
   line: 'line',
+  textBox: 'textBox',
 };
 
 const MIN_DRAG_DISTANCE = 2;
@@ -642,6 +643,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       } else {
         this.inCompositionMode = false;
         this.setCursorByClick(options.e);
+
+        // this.__selectionStartOnMouseDown = this.selectionStart;
+        // if (this.selectionStart === this.selectionEnd) {
+        //   this.abortCursorAnimation();
+        // }
       }
     }
 
@@ -658,6 +664,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         isDragEndPort,
         draggingControlPoint,
         draggingLine,
+        draggingTextBox,
         pointer
       );
       this.canvas._isDraggingConnectionLine = true;
@@ -679,6 +686,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    */
   _setHoverCursor: function (point) {
     if (!this._isDragging && this.canvas) {
+      //  textBox cursor
+      if (this._textBoxContainsPoint(point)) {
+        const cursor = this._isEditingText ? 'text' : 'move';
+        this.canvas.setCursor(cursor);
+        return;
+      }
+
       // start port cursor , end port cursor
       if (this._startPortContainsPoint(point) || this._endPortContainsPoint(point)) {
         const cursor = 'move';
@@ -822,7 +836,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * Handler when drag line path
    * @param point point of mouse coordinates
    */
-  _handleDragLinePath: function (point) {
+  _handleDragLinePathOrTextBox: function (point) {
     const { startDraggingPoint, originalPoints } = this._draggingObject;
     const distance = {
       x: point.x - startDraggingPoint.x,
@@ -839,9 +853,66 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.canvas.requestRenderAll();
   },
 
+  _mouseMoveHandlerInTextBox: function (options) {
+    const isMouseInTextBox = this._textBoxContainsPoint(options.pointer);
+
+    // mouse move in text box
+    if (this._isDragging && isMouseInTextBox) {
+      var newSelectionStart = this.getSelectionStartFromPointer(options.e),
+        currentStart = this.selectionStart,
+        currentEnd = this.selectionEnd;
+      if (
+        (newSelectionStart !== this.__selectionStartOnMouseDown ||
+          currentStart === currentEnd) &&
+        (currentStart === newSelectionStart || currentEnd === newSelectionStart)
+      ) {
+        return;
+      }
+      if (newSelectionStart > this.__selectionStartOnMouseDown) {
+        this.selectionStart = this.__selectionStartOnMouseDown;
+        this.selectionEnd = newSelectionStart;
+      } else {
+        this.selectionStart = newSelectionStart;
+        this.selectionEnd = this.__selectionStartOnMouseDown;
+      }
+      if (this.selectionStart !== currentStart || this.selectionEnd !== currentEnd) {
+        this.restartCursorIfNeeded();
+        this._fireSelectionChanged();
+        this._updateTextarea();
+        this._renderTextBoxSelectionOrCursor();
+      }
+    }
+    // dragging text box
+    else if (
+      this._isDragging &&
+      this._draggingObject.type === DRAGGING_OBJECT_TYPE.textBox &&
+      !this._isEditingText
+    ) {
+      const zoom = this.canvas.getZoom();
+      const point = {
+        x: options.pointer.x / zoom,
+        y: options.pointer.y / zoom,
+      };
+      this._handleDragLinePathOrTextBox(point);
+    }
+  },
+
+  restartCursorIfNeeded: function () {
+    if (
+      !this._currentTickState ||
+      this._currentTickState.isAborted ||
+      !this._currentTickCompleteState ||
+      this._currentTickCompleteState.isAborted
+    ) {
+      this.initDelayedCursor();
+    }
+  },
+
   _canvasMouseMoveHandler: function (options) {
-    // TODO 记得添加对文本的处理
+    this._mouseMoveHandlerInTextBox(options);
+
     this._setHoverCursor(options.pointer);
+
     if (this._isDragging) {
       const notDrag =
         Math.abs(options.pointer.x - this._startDraggingPoint.x) < MIN_DRAG_DISTANCE &&
@@ -866,7 +937,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.controlPoint) {
         this._handleDragControlPoint(point);
       } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.line) {
-        this._handleDragLinePath(point);
+        this._handleDragLinePathOrTextBox(point);
       }
     }
   },
@@ -1111,6 +1182,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     isDragEndPort,
     draggingControlPoint,
     draggingLine,
+    draggingTextBox,
     draggingPoint
   ) {
     const zoom = this.canvas.getZoom();
@@ -1121,7 +1193,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     let result = {
       startDraggingPoint,
     };
-    if (isDragStartPort) {
+    if (draggingTextBox) {
+      result.type = DRAGGING_OBJECT_TYPE.textBox;
+      result.originalPoints = this.points;
+    } else if (isDragStartPort) {
       result.type = DRAGGING_OBJECT_TYPE.startPort;
     } else if (isDragEndPort) {
       result.type = DRAGGING_OBJECT_TYPE.endPort;
@@ -1143,6 +1218,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     isDragEndPort,
     draggingControlPoint,
     draggingLine,
+    draggingTextBox,
     draggingPoint
   ) {
     this._isDragging = true;
@@ -1151,6 +1227,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       isDragEndPort,
       draggingControlPoint,
       draggingLine,
+      draggingTextBox,
       draggingPoint
     );
   },
@@ -3838,6 +3915,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _clearTextArea: function (ctx) {
+    console.log('_clearTextArea');
     // we add 4 pixel, to be sure to do not leave any pixel out
     var width = this.textBoxWidth + 4,
       height = this.textBoxHeight + 4;
