@@ -189,13 +189,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
   /**
    * Constructor
-   * @param {Array} points Array of points (where each point is an object with x and y)
    * @param {Object} [options] Options object
    * @return {fabric.Polyline} thisArg
    */
-  initialize: function (options) {
-    options = options || {};
-
+  initialize: function (options = {}) {
     this.__skipDimension = true;
     this.callSuper('initialize', options);
     this.__skipDimension = false;
@@ -638,9 +635,14 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const draggingLine = this._linesContainsPoint(pointer);
     const draggingTextBox = this._textBoxContainsPoint(pointer);
 
-    // exit editing
-    if (!draggingTextBox && this._isEditingText) {
-      this.exitEditing();
+    if (this._isEditingText) {
+      // exit editing
+      if (!draggingTextBox) {
+        this.exitEditing();
+      } else {
+        this.inCompositionMode = false;
+        this.setCursorByClick(options.e);
+      }
     }
 
     if (
@@ -3651,9 +3653,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (typeof selectionStart === 'undefined') {
       selectionStart = this.selectionStart;
     }
-    var lines = skipWrapping ? this._unwrappedTextLines : this._textLines,
-      len = lines.length;
-    for (var i = 0; i < len; i++) {
+    const lines = skipWrapping ? this._unwrappedTextLines : this._textLines;
+    const len = lines.length;
+    let i = 0;
+    for (; i < len; i++) {
       if (selectionStart <= lines[i].length) {
         return {
           lineIndex: i,
@@ -3711,11 +3714,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       cursorPosition = this.get2DCursorLocation(position);
     charIndex = cursorPosition.charIndex;
     lineIndex = cursorPosition.lineIndex;
-    for (var i = 0; i < lineIndex; i++) {
+    for (let i = 0; i < lineIndex; i++) {
       topOffset += this.getHeightOfLine(i);
     }
     lineLeftOffset = this._getLineLeftOffset(lineIndex);
-    var bound = this.__charBounds[lineIndex][charIndex];
+    let bound = this.__charBounds[lineIndex][charIndex];
     bound && (leftOffset = bound.left);
     if (this.charSpacing !== 0 && charIndex === this._textLines[lineIndex].length) {
       leftOffset -= this._getWidthOfCharSpacing();
@@ -3865,7 +3868,35 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     ctx.restore();
   },
 
-  _renderTextBoxCursor: function (boundaries, ctx) {},
+  _renderTextBoxCursor: function (boundaries, ctx) {
+    const cursorLocation = this.get2DCursorLocation();
+    const lineIndex = cursorLocation.lineIndex;
+    const charIndex = cursorLocation.charIndex > 0 ? cursorLocation.charIndex - 1 : 0;
+    const charHeight = this.getValueOfPropertyAt(lineIndex, charIndex, 'fontSize');
+    const multiplier = this.canvas.getZoom();
+    const cursorWidth = this.cursorWidth / multiplier;
+    const dy = this.getValueOfPropertyAt(lineIndex, charIndex, 'deltaY');
+    let topOffset = boundaries.topOffset;
+
+    topOffset +=
+      ((1 - this._fontSizeFraction) * this.getHeightOfLine(lineIndex)) / this.lineHeight -
+      charHeight * (1 - this._fontSizeFraction);
+
+    if (this.inCompositionMode) {
+      this._renderTextBoxSelection(boundaries, ctx);
+    }
+
+    ctx.fillStyle =
+      this.cursorColor || this.getValueOfPropertyAt(lineIndex, charIndex, 'fill');
+    ctx.globalAlpha = this._isDragging ? 1 : this._currentCursorOpacity;
+
+    ctx.fillRect(
+      boundaries.left + boundaries.leftOffset - cursorWidth / 2,
+      topOffset + boundaries.top + dy,
+      cursorWidth,
+      charHeight
+    );
+  },
 
   _renderTextBoxSelection: function (boundaries, ctx) {
     const selectionStart = this.inCompositionMode
@@ -4177,6 +4208,129 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   _fireSelectionChanged: function () {
     this.fire('selection:changed');
     this.canvas && this.canvas.fire('text:selection:changed', { target: this });
+  },
+
+  /**
+   * Changes cursor location in a text depending on passed pointer (x/y) object
+   * @param {Event} e Event object
+   */
+  setCursorByClick: function (e) {
+    const newSelection = this.getSelectionStartFromPointer(e);
+    const start = this.selectionStart;
+    const end = this.selectionEnd;
+    if (e.shiftKey) {
+      this.setSelectionStartEndWithShift(start, end, newSelection);
+    } else {
+      this.selectionStart = newSelection;
+      this.selectionEnd = newSelection;
+    }
+    if (this._isEditingText) {
+      this._fireSelectionChanged();
+      this._updateTextarea();
+    }
+  },
+
+  /**
+   * Returns index of a character corresponding to where an object was clicked
+   * @param {Event} e Event object
+   * @return {Number} Index of a character
+   */
+  getSelectionStartFromPointer: function (e) {
+    const textBoxCoords = this._getTextCoords();
+    const mouseOffset = {
+      x: this.getLocalPointer(e).x - (textBoxCoords.x - this.textBoxWidth / 2),
+      y: this.getLocalPointer(e).y - (textBoxCoords.y - this.textBoxHeight / 2),
+    };
+    const topOffset = this.textBoxHeight / 2 + this._getTopOffset();
+    let prevWidth = 0;
+    let width = 0;
+    let height = 0;
+    let charIndex = 0;
+    let lineIndex = 0;
+    let lineLeftOffset;
+    let line;
+
+    for (let i = 0, len = this._textLines.length; i < len; i++) {
+      if (height <= mouseOffset.y - topOffset) {
+        height += this.getHeightOfLine(i);
+        lineIndex = i;
+        if (i > 0) {
+          charIndex += this._textLines[i - 1].length + this.missingNewlineOffset(i - 1);
+        }
+      } else {
+        break;
+      }
+    }
+    lineLeftOffset = this._getLineLeftOffset(lineIndex);
+    width = lineLeftOffset;
+    line = this._textLines[lineIndex];
+    let jlen = line.length;
+    for (let j = 0; j < jlen; j++) {
+      prevWidth = width;
+      // i removed something about flipX here, check.
+      width += this.__charBounds[lineIndex][j].kernedWidth;
+      if (width <= mouseOffset.x) {
+        charIndex++;
+      } else {
+        break;
+      }
+    }
+
+    return this._getNewSelectionStartFromOffset(
+      mouseOffset,
+      prevWidth,
+      width,
+      charIndex,
+      jlen
+    );
+  },
+
+  /**
+   * Returns coordinates of a pointer relative to an object
+   * @param {Event} e Event to operate upon
+   * @param {Object} [pointer] Pointer to operate upon (instead of event)
+   * @return {Object} Coordinates of a pointer (x, y)
+   */
+  getLocalPointer: function (e, pointer) {
+    pointer = pointer || this.canvas.getPointer(e);
+    let pClicked = new fabric.Point(pointer.x, pointer.y);
+    const objectLeftTop = this._getLeftTopCoords();
+    if (this.angle) {
+      pClicked = fabric.util.rotatePoint(
+        pClicked,
+        objectLeftTop,
+        fabric.util.degreesToRadians(-this.angle)
+      );
+    }
+    return {
+      x: pClicked.x - objectLeftTop.x,
+      y: pClicked.y - objectLeftTop.y,
+    };
+  },
+
+  /**
+   * @private
+   */
+  _getNewSelectionStartFromOffset: function (mouseOffset, prevWidth, width, index, jlen) {
+    // we need Math.abs because when width is after the last char, the offset is given as 1, while is 0
+    var distanceBtwLastCharAndCursor = mouseOffset.x - prevWidth,
+      distanceBtwNextCharAndCursor = width - mouseOffset.x,
+      offset =
+        distanceBtwNextCharAndCursor > distanceBtwLastCharAndCursor ||
+        distanceBtwNextCharAndCursor < 0
+          ? 0
+          : 1,
+      newSelectionStart = index + offset;
+    // if object is horizontally flipped, mirror cursor location from the end
+    if (this.flipX) {
+      newSelectionStart = jlen - newSelectionStart;
+    }
+
+    if (newSelectionStart > this._text.length) {
+      newSelectionStart = this._text.length;
+    }
+
+    return newSelectionStart;
   },
 });
 
