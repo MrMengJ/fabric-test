@@ -273,6 +273,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
   },
 
+  render: function (ctx) {
+    this.callSuper('render', ctx);
+    this.cursorOffsetCache = {};
+    this._renderTextBoxCursor();
+    this._renderTextBoxSelection();
+  },
+
   /**
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
@@ -630,8 +637,20 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const isDragEndPort = this._endPortContainsPoint(pointer);
     const draggingControlPoint = this._controlPointsContainsPoint(pointer);
     const draggingLine = this._linesContainsPoint(pointer);
+    const draggingTextBox = this._textBoxContainsPoint(pointer);
 
-    if (isDragStartPort || isDragEndPort || draggingControlPoint || draggingLine) {
+    // exit editing
+    if (!draggingTextBox && this._isEditingText) {
+      this.exitEditing();
+    }
+
+    if (
+      isDragStartPort ||
+      isDragEndPort ||
+      draggingControlPoint ||
+      draggingLine ||
+      draggingTextBox
+    ) {
       this._startDraggingPoint = pointer;
       this._startDragging(
         isDragStartPort,
@@ -647,7 +666,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
     } else {
       if (this.selected) {
-        this.selected = false;
+        this.onDeselect();
         this.canvas.requestRenderAll();
       }
     }
@@ -865,9 +884,19 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
   _canvasMouseDblclickHandler: function (options) {
     const { pointer } = options;
-    if (this._linesContainsPoint(pointer)) {
+    if (this._linesContainsPoint(pointer) || this._textBoxContainsPoint(pointer)) {
+      if (!this._isEditingText) {
+        this.enterEditing(options.e);
+      }
+
       this._isEditingText = true;
+
+      if (this._isEditingText) {
+        this.selectAll();
+      }
     }
+    this._renderTextBoxCursor();
+    this._renderTextBoxSelection();
   },
 
   /**
@@ -1381,12 +1410,58 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     });
   },
 
+  /**
+   * Get text box corner coords
+   * @param {Object} port text box center coords
+   * @return {Object} corner coords
+   */
+  _getTextBoxCornerCoords: function (port) {
+    const zoom = this.canvas.getZoom();
+    const actualTextBoxWidth = this._getActualTextBoxWidth();
+    const actualTextBoxHeight = this._getActualTextBoxHeight();
+    return {
+      tl: {
+        x: port.x * zoom - actualTextBoxWidth / 2,
+        y: port.y * zoom - actualTextBoxHeight / 2,
+      },
+      tr: {
+        x: port.x * zoom + actualTextBoxWidth / 2,
+        y: port.y * zoom - actualTextBoxHeight / 2,
+      },
+      bl: {
+        x: port.x * zoom - actualTextBoxWidth / 2,
+        y: port.y * zoom + actualTextBoxHeight / 2,
+      },
+      br: {
+        x: port.x * zoom + actualTextBoxWidth / 2,
+        y: port.y * zoom + actualTextBoxHeight / 2,
+      },
+    };
+  },
+
+  /**
+   * Checks if point is inside the text box
+   * @return {Object} the line
+   */
+  _textBoxContainsPoint: function (point) {
+    if (!this.text) {
+      return false;
+    }
+    const textBoxCornerCoords = this._getTextBoxCornerCoords(this._getTextCoords());
+    return this._containsPoint(point, textBoxCornerCoords);
+  },
+
   // For text
 
   text: '',
 
   textStyle: defaultTextStyle,
 
+  /**
+   * Indicates whether text is in editing mode
+   * @type Boolean
+   * @default
+   */
   _isEditingText: false,
 
   /**
@@ -1687,13 +1762,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   selectionColor: 'rgba(17,119,255,0.3)',
 
   /**
-   * Indicates whether text is in editing mode
-   * @type Boolean
-   * @default
-   */
-  isEditing: false,
-
-  /**
    * Indicates whether a text can be edited
    * @type Boolean
    * @default
@@ -1777,6 +1845,92 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   inCompositionMode: false,
 
   /**
+   * For functionalities on keyDown
+   * Map a special key to a function of the instance/prototype
+   * If you need different behaviour for ESC or TAB or arrows, you have to change
+   * this map setting the name of a function that you build on the fabric.Itext or
+   * your prototype.
+   * the map change will affect all Instances unless you need for only some text Instances
+   * in that case you have to clone this object and assign your Instance.
+   * this.keysMap = fabric.util.object.clone(this.keysMap);
+   * The function must be in fabric.Itext.prototype.myFunction And will receive event as args[0]
+   */
+  keysMap: {
+    9: 'exitEditing',
+    27: 'exitEditing',
+    33: 'moveCursorUp',
+    34: 'moveCursorDown',
+    35: 'moveCursorRight',
+    36: 'moveCursorLeft',
+    37: 'moveCursorLeft',
+    38: 'moveCursorUp',
+    39: 'moveCursorRight',
+    40: 'moveCursorDown',
+  },
+
+  /**
+   * For functionalities on keyUp + ctrl || cmd
+   */
+  ctrlKeysMapUp: {
+    67: 'copy',
+    88: 'cut',
+  },
+
+  /**
+   * For functionalities on keyDown + ctrl || cmd
+   */
+  ctrlKeysMapDown: {
+    65: 'selectAll',
+  },
+
+  /**
+   * Minimum width of textbox, in pixels.
+   * @type Number
+   * @default
+   */
+  minWidth: 20,
+
+  /**
+   * Minimum calculated width of a textbox, in pixels.
+   * fixed to 2 so that an empty textbox cannot go to 0
+   * and is still selectable without text.
+   * @type Number
+   * @default
+   */
+  dynamicMinWidth: 2,
+
+  /**
+   * Cached array of text wrapping.
+   * @type Array
+   */
+  __cachedLines: null,
+
+  /**
+   * Override standard Object class values
+   */
+  lockScalingFlip: true,
+
+  /**
+   * Override standard Object class values
+   * Textbox needs this on false
+   */
+  noScaleCache: false,
+
+  /**
+   * Use this regular expression to split strings in breakable lines
+   * @private
+   */
+  _wordJoiners: /[ \t\r]/,
+
+  /**
+   * Use this boolean property in order to split strings that have no white space concept.
+   * this is a cheap way to help with chinese/japaense
+   * @type Boolean
+   * @since 2.6.0
+   */
+  splitByGrapheme: true,
+
+  /**
    * Initializes all the interactive behavior of text
    */
   initTextBehavior: function () {
@@ -1789,7 +1943,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * Initializes event handlers related to cursor or selection
    */
   initCursorSelectionHandlers: function () {
-    // this.initMousedownHandler();
+    // this.initTextMousedownHandler();
     // this.initMouseupHandler();
     // this.initClicks();
   },
@@ -1797,7 +1951,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   /**
    * Initializes "mousedown" event handler
    //  */
-  // initMousedownHandler: function () {
+  // initTextMousedownHandler: function () {
   //   this.on('mousedown', this._mouseDownHandler);
   // },
 
@@ -1818,6 +1972,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       this.enlargeSpaces();
     }
     this.textBoxHeight = this.calcTextHeight();
+    // wrap lines
+    this._styleMap = this._generateStyleMap(this._splitText());
     this.saveState({ propertySet: '_dimensionAffectingProps' });
   },
 
@@ -2147,10 +2303,19 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   /**
    * Detect if the text line is ended with an hard break
    * text and itext do not have wrapping, return false
+   * @param {Number} lineIndex text to split
    * @return {Boolean}
    */
   isEndOfWrapping: function (lineIndex) {
-    return lineIndex === this._textLines.length - 1;
+    if (!this._styleMap[lineIndex + 1]) {
+      // is last line, return true;
+      return true;
+    }
+    if (this._styleMap[lineIndex + 1].line !== this._styleMap[lineIndex].line) {
+      // this is last line before a line break, return true;
+      return true;
+    }
+    return false;
   },
 
   _renderText: function (ctx) {
@@ -2398,10 +2563,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (decl && decl.deltaY) {
       top += decl.deltaY;
     }
-    // console.log('_char', _char);
-    // console.log('ctx', ctx.getTransform());
-    // console.log('left', left);
-    // console.log('top', top);
     shouldFill && ctx.fillText(_char, left, top);
     shouldStroke && ctx.strokeText(_char, left, top);
     decl && ctx.restore();
@@ -2693,6 +2854,888 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
     });
     return result;
+  },
+
+  /**
+   * Initializes hidden textarea (needed to bring up keyboard in iOS)
+   */
+  initHiddenTextarea: function () {
+    this.hiddenTextarea = fabric.document.createElement('textarea');
+    this.hiddenTextarea.setAttribute('autocapitalize', 'off');
+    this.hiddenTextarea.setAttribute('autocorrect', 'off');
+    this.hiddenTextarea.setAttribute('autocomplete', 'off');
+    this.hiddenTextarea.setAttribute('spellcheck', 'false');
+    this.hiddenTextarea.setAttribute('data-fabric-hiddentextarea', '');
+    this.hiddenTextarea.setAttribute('wrap', 'off');
+    var style = this._calcTextareaPosition();
+    // line-height: 1px; was removed from the style to fix this:
+    // https://bugs.chromium.org/p/chromium/issues/detail?id=870966
+    this.hiddenTextarea.style.cssText =
+      'position: absolute; top: ' +
+      style.top +
+      '; left: ' +
+      style.left +
+      '; z-index: -999; opacity: 0; width: 1px; height: 1px; font-size: 1px;' +
+      ' paddingｰtop: ' +
+      style.fontSize +
+      ';';
+    fabric.document.body.appendChild(this.hiddenTextarea);
+
+    fabric.util.addListener(this.hiddenTextarea, 'keydown', this.onKeyDown.bind(this));
+    fabric.util.addListener(this.hiddenTextarea, 'keyup', this.onKeyUp.bind(this));
+    fabric.util.addListener(this.hiddenTextarea, 'input', this.onInput.bind(this));
+    fabric.util.addListener(this.hiddenTextarea, 'copy', this.copy.bind(this));
+    fabric.util.addListener(this.hiddenTextarea, 'cut', this.copy.bind(this));
+    fabric.util.addListener(this.hiddenTextarea, 'paste', this.paste.bind(this));
+    fabric.util.addListener(
+      this.hiddenTextarea,
+      'compositionstart',
+      this.onCompositionStart.bind(this)
+    );
+    fabric.util.addListener(
+      this.hiddenTextarea,
+      'compositionupdate',
+      this.onCompositionUpdate.bind(this)
+    );
+    fabric.util.addListener(
+      this.hiddenTextarea,
+      'compositionend',
+      this.onCompositionEnd.bind(this)
+    );
+
+    if (!this._clickHandlerInitialized && this.canvas) {
+      fabric.util.addListener(
+        this.canvas.upperCanvasEl,
+        'click',
+        this.onClick.bind(this)
+      );
+      this._clickHandlerInitialized = true;
+    }
+  },
+
+  // text event
+
+  onClick: function () {
+    // No need to trigger click event here, focus is enough to have the keyboard appear on Android
+    this.hiddenTextarea && this.hiddenTextarea.focus();
+  },
+
+  /**
+   * Handles keydown event
+   * only used for arrows and combination of modifier keys.
+   * @param {Event} e Event object
+   */
+  onKeyDown: function (e) {
+    if (!this._isEditingText) {
+      return;
+    }
+    if (e.keyCode in this.keysMap) {
+      this[this.keysMap[e.keyCode]](e);
+    } else if (e.keyCode in this.ctrlKeysMapDown && (e.ctrlKey || e.metaKey)) {
+      this[this.ctrlKeysMapDown[e.keyCode]](e);
+    } else {
+      return;
+    }
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    if (e.keyCode >= 33 && e.keyCode <= 40) {
+      // if i press an arrow key just update selection
+      this.inCompositionMode = false;
+      this.clearContextTop();
+      this.renderCursorOrSelection();
+    } else {
+      this.canvas && this.canvas.requestRenderAll();
+    }
+  },
+
+  /**
+   * Handles keyup event
+   * We handle KeyUp because ie11 and edge have difficulties copy/pasting
+   * if a copy/cut event fired, keyup is dismissed
+   * @param {Event} e Event object
+   */
+  onKeyUp: function (e) {
+    if (!this._isEditingText || this._copyDone || this.inCompositionMode) {
+      this._copyDone = false;
+      return;
+    }
+    if (e.keyCode in this.ctrlKeysMapUp && (e.ctrlKey || e.metaKey)) {
+      this[this.ctrlKeysMapUp[e.keyCode]](e);
+    } else {
+      return;
+    }
+    e.stopImmediatePropagation();
+    e.preventDefault();
+    this.canvas && this.canvas.requestRenderAll();
+  },
+
+  /**
+   * Handles onInput event
+   * @param {Event} e Event object
+   */
+  onInput: function (e) {
+    var fromPaste = this.fromPaste;
+    this.fromPaste = false;
+    e && e.stopPropagation();
+    if (!this._isEditingText) {
+      return;
+    }
+    // decisions about style changes.
+    var nextText = this._splitTextIntoLines(this.hiddenTextarea.value).graphemeText,
+      charCount = this._text.length,
+      nextCharCount = nextText.length,
+      removedText,
+      insertedText,
+      charDiff = nextCharCount - charCount,
+      selectionStart = this.selectionStart,
+      selectionEnd = this.selectionEnd,
+      selection = selectionStart !== selectionEnd,
+      copiedStyle,
+      removeFrom,
+      removeTo;
+    if (this.hiddenTextarea.value === '') {
+      this.textStyles = {};
+      this.updateFromTextArea();
+      this.fire('changed');
+      if (this.canvas) {
+        this.canvas.fire('text:changed', { target: this });
+        this.canvas.requestRenderAll();
+      }
+      return;
+    }
+
+    var textareaSelection = this.fromStringToGraphemeSelection(
+      this.hiddenTextarea.selectionStart,
+      this.hiddenTextarea.selectionEnd,
+      this.hiddenTextarea.value
+    );
+    var backDelete = selectionStart > textareaSelection.selectionStart;
+
+    if (selection) {
+      removedText = this._text.slice(selectionStart, selectionEnd);
+      charDiff += selectionEnd - selectionStart;
+    } else if (nextCharCount < charCount) {
+      if (backDelete) {
+        removedText = this._text.slice(selectionEnd + charDiff, selectionEnd);
+      } else {
+        removedText = this._text.slice(selectionStart, selectionStart - charDiff);
+      }
+    }
+    insertedText = nextText.slice(
+      textareaSelection.selectionEnd - charDiff,
+      textareaSelection.selectionEnd
+    );
+    if (removedText && removedText.length) {
+      if (insertedText.length) {
+        // let's copy some style before deleting.
+        // we want to copy the style before the cursor OR the style at the cursor if selection
+        // is bigger than 0.
+        copiedStyle = this.getSelectionStyles(selectionStart, selectionStart + 1, false);
+        // now duplicate the style one for each inserted text.
+        copiedStyle = insertedText.map(function () {
+          // this return an array of references, but that is fine since we are
+          // copying the style later.
+          return copiedStyle[0];
+        });
+      }
+      if (selection) {
+        removeFrom = selectionStart;
+        removeTo = selectionEnd;
+      } else if (backDelete) {
+        // detect differencies between forwardDelete and backDelete
+        removeFrom = selectionEnd - removedText.length;
+        removeTo = selectionEnd;
+      } else {
+        removeFrom = selectionEnd;
+        removeTo = selectionEnd + removedText.length;
+      }
+      this.removeStyleFromTo(removeFrom, removeTo);
+    }
+    if (insertedText.length) {
+      if (
+        fromPaste &&
+        insertedText.join('') === fabric.copiedText &&
+        !fabric.disableStyleCopyPaste
+      ) {
+        copiedStyle = fabric.copiedTextStyle;
+      }
+      this.insertNewStyleBlock(insertedText, selectionStart, copiedStyle);
+    }
+    this.updateFromTextArea();
+    this.fire('changed');
+    if (this.canvas) {
+      this.canvas.fire('text:changed', { target: this });
+      this.canvas.requestRenderAll();
+    }
+  },
+
+  /**
+   * convert from textarea to grapheme indexes
+   */
+  fromStringToGraphemeSelection: function (start, end, text) {
+    var smallerTextStart = text.slice(0, start),
+      graphemeStart = fabric.util.string.graphemeSplit(smallerTextStart).length;
+    if (start === end) {
+      return { selectionStart: graphemeStart, selectionEnd: graphemeStart };
+    }
+    var smallerTextEnd = text.slice(start, end),
+      graphemeEnd = fabric.util.string.graphemeSplit(smallerTextEnd).length;
+    return { selectionStart: graphemeStart, selectionEnd: graphemeStart + graphemeEnd };
+  },
+
+  /**
+   * Composition start
+   */
+  onCompositionStart: function () {
+    this.inCompositionMode = true;
+  },
+
+  /**
+   * Composition end
+   */
+  onCompositionEnd: function () {
+    this.inCompositionMode = false;
+  },
+
+  // /**
+  //  * Composition update
+  //  */
+  onCompositionUpdate: function (e) {
+    this.compositionStart = e.target.selectionStart;
+    this.compositionEnd = e.target.selectionEnd;
+    this.updateTextareaPosition();
+  },
+
+  /**
+   * @private
+   */
+  updateTextareaPosition: function () {
+    if (this.selectionStart === this.selectionEnd) {
+      const style = this._calcTextareaPosition();
+      this.hiddenTextarea.style.left = style.left;
+      this.hiddenTextarea.style.top = style.top;
+    }
+  },
+
+  /**
+   * Copies selected text
+   * @param {Event} e Event object
+   */
+  copy: function () {
+    if (this.selectionStart === this.selectionEnd) {
+      //do not cut-copy if no selection
+      return;
+    }
+
+    fabric.copiedText = this.getSelectedText();
+    if (!fabric.disableStyleCopyPaste) {
+      fabric.copiedTextStyle = this.getSelectionStyles(
+        this.selectionStart,
+        this.selectionEnd,
+        true
+      );
+    } else {
+      fabric.copiedTextStyle = null;
+    }
+    this._copyDone = true;
+  },
+
+  /**
+   * Gets style of a current selection/cursor (at the start position)
+   * if startIndex or endIndex are not provided, slectionStart or selectionEnd will be used.
+   * @param {Number} [startIndex] Start index to get styles at
+   * @param {Number} [endIndex] End index to get styles at, if not specified selectionEnd or startIndex + 1
+   * @param {Boolean} [complete] get full style or not
+   * @return {Array} styles an array with one, zero or more Style objects
+   */
+  getSelectionStyles: function (startIndex, endIndex, complete) {
+    if (typeof startIndex === 'undefined') {
+      startIndex = this.selectionStart || 0;
+    }
+    if (typeof endIndex === 'undefined') {
+      endIndex = this.selectionEnd || startIndex;
+    }
+    var styles = [];
+    for (var i = startIndex; i < endIndex; i++) {
+      styles.push(this.getStyleAtPosition(i, complete));
+    }
+    return styles;
+  },
+
+  /**
+   * Gets style of a current selection/cursor position
+   * @param {Number} position  to get styles at
+   * @param {Boolean} [complete] full style if true
+   * @return {Object} style Style object at a specified index
+   * @private
+   */
+  getStyleAtPosition: function (position, complete) {
+    var loc = this.get2DCursorLocation(position),
+      style = complete
+        ? this.getCompleteStyleDeclaration(loc.lineIndex, loc.charIndex)
+        : this._getStyleDeclaration(loc.lineIndex, loc.charIndex);
+    return style || {};
+  },
+
+  /**
+   * Returns selected text
+   * @return {String}
+   */
+  getSelectedText: function () {
+    return this._text.slice(this.selectionStart, this.selectionEnd).join('');
+  },
+
+  /**
+   * Pastes text
+   * @param {Event} e Event object
+   */
+  paste: function () {
+    this.fromPaste = true;
+  },
+
+  /**
+   * @private
+   * @param {Event} e Event object
+   * @return {Object} Clipboard data object
+   */
+  _getClipboardData: function (e) {
+    return (e && e.clipboardData) || fabric.window.clipboardData;
+  },
+
+  /**
+   * Detect if a line has a linebreak and so we need to account for it when moving
+   * and counting style.
+   * @return Number
+   */
+  missingNewlineOffset: function (lineIndex) {
+    if (this.splitByGrapheme) {
+      return this.isEndOfWrapping(lineIndex) ? 1 : 0;
+    }
+    return 1;
+  },
+
+  /**
+   * Returns 2d representation (lineIndex and charIndex) of cursor (or selection start)
+   * @param {Number} [selectionStart] Optional index. When not given, current selectionStart is used.
+   * @param {Boolean} [skipWrapping] consider the location for unwrapped lines. useful to manage styles.
+   */
+  get2DCursorLocation: function (selectionStart, skipWrapping) {
+    if (typeof selectionStart === 'undefined') {
+      selectionStart = this.selectionStart;
+    }
+    var lines = skipWrapping ? this._unwrappedTextLines : this._textLines,
+      len = lines.length;
+    for (var i = 0; i < len; i++) {
+      if (selectionStart <= lines[i].length) {
+        return {
+          lineIndex: i,
+          charIndex: selectionStart,
+        };
+      }
+      selectionStart -= lines[i].length + this.missingNewlineOffset(i);
+    }
+    return {
+      lineIndex: i - 1,
+      charIndex:
+        lines[i - 1].length < selectionStart ? lines[i - 1].length : selectionStart,
+    };
+  },
+
+  /**
+   * Returns cursor boundaries (left, top, leftOffset, topOffset)
+   * @private
+   * @param {Array} chars Array of characters
+   * @param {String} typeOfBoundaries
+   */
+  _getCursorBoundaries: function (position) {
+    // left/top are left/top of entire text box
+    // leftOffset/topOffset are offset from that left/top point of a text box
+
+    if (typeof position === 'undefined') {
+      position = this.selectionStart;
+    }
+
+    var left = this._getLeftOffset(),
+      top = this._getTopOffset(),
+      offsets = this._getCursorBoundariesOffsets(position);
+
+    return {
+      left: left,
+      top: top,
+      leftOffset: offsets.left,
+      topOffset: offsets.top,
+    };
+  },
+
+  /**
+   * @private
+   */
+  _getCursorBoundariesOffsets: function (position) {
+    if (this.cursorOffsetCache && 'top' in this.cursorOffsetCache) {
+      return this.cursorOffsetCache;
+    }
+    var lineLeftOffset,
+      lineIndex,
+      charIndex,
+      topOffset = 0,
+      leftOffset = 0,
+      boundaries,
+      cursorPosition = this.get2DCursorLocation(position);
+    charIndex = cursorPosition.charIndex;
+    lineIndex = cursorPosition.lineIndex;
+    for (var i = 0; i < lineIndex; i++) {
+      topOffset += this.getHeightOfLine(i);
+    }
+    lineLeftOffset = this._getLineLeftOffset(lineIndex);
+    var bound = this.__charBounds[lineIndex][charIndex];
+    bound && (leftOffset = bound.left);
+    if (this.charSpacing !== 0 && charIndex === this._textLines[lineIndex].length) {
+      leftOffset -= this._getWidthOfCharSpacing();
+    }
+    boundaries = {
+      top: topOffset,
+      left: lineLeftOffset + (leftOffset > 0 ? leftOffset : 0),
+    };
+    this.cursorOffsetCache = boundaries;
+    return this.cursorOffsetCache;
+  },
+
+  /**
+   * @private
+   * @return {Number} Left offset
+   */
+  _getLeftOffset: function () {
+    return -this.textBoxWidth / 2;
+  },
+
+  /**
+   * @private
+   * @return {Number} Top offset
+   */
+  _getTopOffset: function () {
+    return -this.textBoxHeight / 2;
+  },
+
+  _getActualTextBoxWidth: function () {
+    const zoom = this.canvas ? this.canvas.getZoom() : 1;
+    return this.getObjectScaling().scaleX * zoom * this.textBoxWidth;
+  },
+
+  _getActualTextBoxHeight: function () {
+    const zoom = this.canvas ? this.canvas.getZoom() : 1;
+    return this.getObjectScaling().scaleY * zoom * this.textBoxHeight;
+  },
+
+  /**
+   * @private
+   * @return {Object} style contains style for hiddenTextarea
+   */
+  _calcTextareaPosition: function () {
+    if (!this.canvas) {
+      return { x: 1, y: 1 };
+    }
+    var desiredPosition = this.inCompositionMode
+        ? this.compositionStart
+        : this.selectionStart,
+      boundaries = this._getCursorBoundaries(desiredPosition),
+      cursorLocation = this.get2DCursorLocation(desiredPosition),
+      lineIndex = cursorLocation.lineIndex,
+      charIndex = cursorLocation.charIndex,
+      charHeight =
+        this.getValueOfPropertyAt(lineIndex, charIndex, 'fontSize') * this.lineHeight,
+      leftOffset = boundaries.leftOffset,
+      m = this.calcTransformMatrix(),
+      p = {
+        x: boundaries.left + leftOffset,
+        y: boundaries.top + boundaries.topOffset + charHeight,
+      },
+      retinaScaling = this.canvas.getRetinaScaling(),
+      upperCanvas = this.canvas.upperCanvasEl,
+      upperCanvasWidth = upperCanvas.width / retinaScaling,
+      upperCanvasHeight = upperCanvas.height / retinaScaling,
+      maxWidth = upperCanvasWidth - charHeight,
+      maxHeight = upperCanvasHeight - charHeight,
+      scaleX = upperCanvas.clientWidth / upperCanvasWidth,
+      scaleY = upperCanvas.clientHeight / upperCanvasHeight;
+
+    p = fabric.util.transformPoint(p, m);
+    p = fabric.util.transformPoint(p, this.canvas.viewportTransform);
+    p.x *= scaleX;
+    p.y *= scaleY;
+    if (p.x < 0) {
+      p.x = 0;
+    }
+    if (p.x > maxWidth) {
+      p.x = maxWidth;
+    }
+    if (p.y < 0) {
+      p.y = 0;
+    }
+    if (p.y > maxHeight) {
+      p.y = maxHeight;
+    }
+
+    // add canvas offset on document
+    p.x += this.canvas._offset.left;
+    p.y += this.canvas._offset.top;
+
+    return {
+      left: p.x + 'px',
+      top: p.y + 'px',
+      fontSize: charHeight + 'px',
+      charHeight: charHeight,
+    };
+  },
+
+  /**
+   * Prepare and clean the contextTop
+   */
+  clearContextTop: function (skipRestore) {
+    if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
+      return;
+    }
+    const ctx = this.canvas.contextTop;
+    const v = this.canvas.viewportTransform;
+    const zoom = this.canvas.getZoom();
+    const textPosition = this._getTextCoords();
+    ctx.save();
+    // ctx.transform(v[0], v[1], v[2], v[3], v[4], v[5]);
+    ctx.transform(v[0], v[1], v[2], v[3], textPosition.x * zoom, textPosition.y * zoom);
+    this.transform(ctx);
+
+    this._clearTextArea(ctx);
+    skipRestore || ctx.restore();
+  },
+
+  _clearTextArea: function (ctx) {
+    // we add 4 pixel, to be sure to do not leave any pixel out
+    var width = this.textBoxWidth + 4,
+      height = this.textBoxHeight + 4;
+    ctx.clearRect(-width / 2, -height / 2, width, height);
+  },
+
+  _textMouseDownHandler: function (options) {
+    console.log('mouseDown', options);
+  },
+
+  _textMouseDownHandlerBefore: function (options) {},
+
+  _renderTextBoxCursor: function () {
+    if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
+      return;
+    }
+  },
+
+  _renderTextBoxSelection: function () {
+    if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
+      return;
+    }
+    const boundaries = this._getCursorBoundaries();
+
+    const ctx = this.canvas.contextTop;
+    this.clearContextTop(true);
+
+    const selectionStart = this.inCompositionMode
+        ? this.hiddenTextarea.selectionStart
+        : this.selectionStart,
+      selectionEnd = this.inCompositionMode
+        ? this.hiddenTextarea.selectionEnd
+        : this.selectionEnd,
+      isJustify = this.textAlign.indexOf('justify') !== -1,
+      start = this.get2DCursorLocation(selectionStart),
+      end = this.get2DCursorLocation(selectionEnd),
+      startLine = start.lineIndex,
+      endLine = end.lineIndex,
+      startChar = start.charIndex < 0 ? 0 : start.charIndex,
+      endChar = end.charIndex < 0 ? 0 : end.charIndex;
+    for (let i = startLine; i <= endLine; i++) {
+      let lineOffset = this._getLineLeftOffset(i) || 0,
+        lineHeight = this.getHeightOfLine(i),
+        realLineHeight = 0,
+        boxStart = 0,
+        boxEnd = 0;
+      if (i === startLine) {
+        boxStart = this.__charBounds[startLine][startChar].left;
+      }
+      if (i >= startLine && i < endLine) {
+        boxEnd =
+          isJustify && !this.isEndOfWrapping(i) ? this.width : this.getLineWidth(i) || 5; // WTF is this 5?
+      } else if (i === endLine) {
+        if (endChar === 0) {
+          boxEnd = this.__charBounds[endLine][endChar].left;
+        } else {
+          let charSpacing = this._getWidthOfCharSpacing();
+          boxEnd =
+            this.__charBounds[endLine][endChar - 1].left +
+            this.__charBounds[endLine][endChar - 1].width -
+            charSpacing;
+        }
+      }
+      realLineHeight = lineHeight;
+      if (this.lineHeight < 1 || (i === endLine && this.lineHeight > 1)) {
+        lineHeight /= this.lineHeight;
+      }
+      if (this.inCompositionMode) {
+        ctx.fillStyle = this.compositionColor || 'black';
+        ctx.fillRect(
+          boundaries.left + lineOffset + boxStart,
+          boundaries.top + boundaries.topOffset + lineHeight,
+          boxEnd - boxStart,
+          1
+        );
+      } else {
+        ctx.fillStyle = this.selectionColor;
+        ctx.fillRect(
+          boundaries.left + lineOffset + boxStart,
+          boundaries.top + boundaries.topOffset,
+          boxEnd - boxStart,
+          lineHeight
+        );
+      }
+
+      boundaries.topOffset += realLineHeight;
+    }
+
+    ctx.restore();
+  },
+
+  /**
+   * @private
+   */
+  _animateCursor: function (obj, targetOpacity, duration, completeMethod) {
+    var tickState;
+
+    tickState = {
+      isAborted: false,
+      abort: function () {
+        this.isAborted = true;
+      },
+    };
+
+    obj.animate('_currentCursorOpacity', targetOpacity, {
+      duration: duration,
+      onComplete: function () {
+        if (!tickState.isAborted) {
+          obj[completeMethod]();
+        }
+      },
+      onChange: function () {
+        // we do not want to animate a selection, only cursor
+        if (obj.canvas && obj.selectionStart === obj.selectionEnd) {
+          obj._renderTextBoxCursor();
+        }
+      },
+      abort: function () {
+        return tickState.isAborted;
+      },
+    });
+    return tickState;
+  },
+
+  /**
+   * @private
+   */
+  _tick: function () {
+    this._currentTickState = this._animateCursor(
+      this,
+      1,
+      this.cursorDuration,
+      '_onTickComplete'
+    );
+  },
+
+  /**
+   * @private
+   */
+  _onTickComplete: function () {
+    var _this = this;
+
+    if (this._cursorTimeout1) {
+      clearTimeout(this._cursorTimeout1);
+    }
+    this._cursorTimeout1 = setTimeout(function () {
+      _this._currentTickCompleteState = _this._animateCursor(
+        _this,
+        0,
+        this.cursorDuration / 2,
+        '_tick'
+      );
+    }, 100);
+  },
+
+  /**
+   * Enters editing state
+   * @return {fabric.IText} thisArg
+   * @chainable
+   */
+  enterEditing: function (e) {
+    if (this._isEditingText || !this.editable) {
+      return;
+    }
+
+    // if (this.canvas) {
+    //   this.canvas.calcOffset();
+    //   this.exitEditingOnOthers(this.canvas);
+    // }
+
+    this._isEditingText = true;
+
+    this.initHiddenTextarea(e);
+    this.hiddenTextarea.focus();
+    this.hiddenTextarea.value = this.text;
+    // this._updateTextarea();
+    // this._saveEditingProps();
+    // this._setEditingProps();
+    // this._textBeforeEdit = this.text;
+    //
+    this._tick();
+    // this.fire('editing:entered');
+    // this._fireSelectionChanged();
+    // if (!this.canvas) {
+    //   return this;
+    // }
+    // this.canvas.fire('text:editing:entered', { target: this });
+    // this.initMouseMoveHandler();
+    this.canvas.requestRenderAll();
+    return this;
+  },
+
+  /**
+   * Selects entire text
+   * @return {fabric.IText} thisArg
+   * @chainable
+   */
+  selectAll: function () {
+    this.selectionStart = 0;
+    this.selectionEnd = this._text.length;
+    this._updateTextarea();
+    return this;
+  },
+
+  /**
+   * @private
+   */
+  _updateTextarea: function () {
+    this.cursorOffsetCache = {};
+    if (!this.hiddenTextarea) {
+      return;
+    }
+    if (!this.inCompositionMode) {
+      var newSelection = this.fromGraphemeToStringSelection(
+        this.selectionStart,
+        this.selectionEnd,
+        this._text
+      );
+      this.hiddenTextarea.selectionStart = newSelection.selectionStart;
+      this.hiddenTextarea.selectionEnd = newSelection.selectionEnd;
+    }
+    this.updateTextareaPosition();
+  },
+
+  /**
+   * convert from fabric to textarea values
+   */
+  fromGraphemeToStringSelection: function (start, end, _text) {
+    const smallerTextStart = _text.slice(0, start),
+      graphemeStart = smallerTextStart.join('').length;
+    if (start === end) {
+      return { selectionStart: graphemeStart, selectionEnd: graphemeStart };
+    }
+    const smallerTextEnd = _text.slice(start, end),
+      graphemeEnd = smallerTextEnd.join('').length;
+    return { selectionStart: graphemeStart, selectionEnd: graphemeStart + graphemeEnd };
+  },
+
+  onDeselect: function () {
+    this.selected = false;
+  },
+
+  /**
+   * Aborts cursor animation and clears all timeouts
+   */
+  abortCursorAnimation: function () {
+    var shouldClear = this._currentTickState || this._currentTickCompleteState,
+      canvas = this.canvas;
+    this._currentTickState && this._currentTickState.abort();
+    this._currentTickCompleteState && this._currentTickCompleteState.abort();
+
+    clearTimeout(this._cursorTimeout1);
+    clearTimeout(this._cursorTimeout2);
+
+    this._currentCursorOpacity = 0;
+    // to clear just itext area we need to transform the context
+    // it may not be worth it
+
+    if (shouldClear && canvas) {
+      canvas.clearContext(canvas.contextTop || canvas.contextContainer);
+    }
+  },
+
+  /**
+   * Exits from editing state
+   * @return {fabric.IText} thisArg
+   * @chainable
+   */
+  exitEditing: function () {
+    const hiddenTextarea = this.hiddenTextarea;
+    this.selected = false;
+    this._isEditingText = false;
+
+    this.selectionEnd = this.selectionStart;
+
+    if (hiddenTextarea) {
+      hiddenTextarea.blur && hiddenTextarea.blur();
+      hiddenTextarea.parentNode && hiddenTextarea.parentNode.removeChild(hiddenTextarea);
+    }
+    this.hiddenTextarea = null;
+    this.abortCursorAnimation();
+    // this._restoreEditingProps();
+    this._currentCursorOpacity = 0;
+    // if (this._shouldClearDimensionCache()) {
+    //   this.initDimensions();
+    //   this.setCoords();
+    // }
+    if (this.canvas) {
+      // this.canvas.off('mouse:move', this.mouseMoveHandler);
+    }
+    return this;
+  },
+
+  /**
+   * Generate an object that translates the style object so that it is
+   * broken up by visual lines (new lines and automatic wrapping).
+   * The original text styles object is broken up by actual lines (new lines only),
+   * which is only sufficient for Text / IText
+   * @private
+   */
+  _generateStyleMap: function (textInfo) {
+    let realLineCount = 0,
+      realLineCharCount = 0,
+      charCount = 0,
+      map = {};
+
+    for (let i = 0; i < textInfo.graphemeLines.length; i++) {
+      if (textInfo.graphemeText[charCount] === '\n' && i > 0) {
+        realLineCharCount = 0;
+        charCount++;
+        realLineCount++;
+      } else if (
+        !this.splitByGrapheme &&
+        this._reSpaceAndTab.test(textInfo.graphemeText[charCount]) &&
+        i > 0
+      ) {
+        // this case deals with space's that are removed from end of lines when wrapping
+        realLineCharCount++;
+        charCount++;
+      }
+
+      map[i] = { line: realLineCount, offset: realLineCharCount };
+
+      charCount += textInfo.graphemeLines[i].length;
+      realLineCharCount += textInfo.graphemeLines[i].length;
+    }
+
+    return map;
   },
 });
 
