@@ -2838,6 +2838,7 @@ const Text = fabric.util.createClass(BaseObject, {
     var hiddenTextarea = this.hiddenTextarea;
     this.selected = false;
     this.isEditing = false;
+    this.canvas.isEditing = false;
 
     this.selectionEnd = this.selectionStart;
 
@@ -3230,6 +3231,7 @@ const Text = fabric.util.createClass(BaseObject, {
    */
   doubleClickHandler: function (options) {
     if (!this.isEditing) {
+      this.canvas.isEditing = true;
       this.enterEditing(options.e);
     }
     if (this.isEditing) {
