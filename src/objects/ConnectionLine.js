@@ -199,7 +199,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.__skipDimension = false;
     this._initTextStyle();
     this.initDimensions();
-    this.initTextBehavior();
 
     this._initPoints();
     this._initDirection();
@@ -2007,31 +2006,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @since 2.6.0
    */
   splitByGrapheme: true,
-
-  /**
-   * Initializes all the interactive behavior of text
-   */
-  initTextBehavior: function () {
-    // this.initCursorSelectionHandlers();
-    // this.initDoubleClickSimulation();
-    // this.mouseMoveHandler = this.mouseMoveHandler.bind(this);
-  },
-
-  /**
-   * Initializes event handlers related to cursor or selection
-   */
-  initCursorSelectionHandlers: function () {
-    // this.initTextMousedownHandler();
-    // this.initMouseupHandler();
-    // this.initClicks();
-  },
-
-  /**
-   * Initializes "mousedown" event handler
-   //  */
-  // initTextMousedownHandler: function () {
-  //   this.on('mousedown', this._mouseDownHandler);
-  // },
 
   /**
    * Initialize or update text dimensions.
@@ -3922,12 +3896,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       height = this.textBoxHeight + 4;
     ctx.clearRect(-width / 2, -height / 2, width, height);
   },
-
-  _textMouseDownHandler: function (options) {
-    console.log('mouseDown', options);
-  },
-
-  _textMouseDownHandlerBefore: function (options) {},
 
   _renderTextBoxSelectionOrCursor: function () {
     if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
