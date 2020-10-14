@@ -1402,7 +1402,12 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   },
 
   setViewportTransform: function (vpt) {
-    if (this.renderOnAddRemove && this._activeObject && this._activeObject.isEditing) {
+    // _isEditingText is for connection line
+    if (
+      this.renderOnAddRemove &&
+      this._activeObject &&
+      (this._activeObject.isEditing || this._activeObject._isEditingText)
+    ) {
       this._activeObject.clearContextTop();
     }
     fabric.StaticCanvas.prototype.setViewportTransform.call(this, vpt);

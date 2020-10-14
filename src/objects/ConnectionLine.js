@@ -657,6 +657,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       draggingLine ||
       draggingTextBox
     ) {
+      // must reset when mouse down
+      this.canvas.setActiveObject(this);
+
       this._startDraggingPoint = pointer;
       this._startDragging(
         isDragStartPort,
@@ -673,7 +676,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
     } else {
       if (this.selected) {
-        this.onDeselect();
+        this.onCancelSelect();
         this.canvas.requestRenderAll();
       }
     }
@@ -2016,6 +2019,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (this.__skipDimension) {
       return;
     }
+    if (this._isEditingText) {
+      this.initDelayedCursor();
+    }
+    this.clearContextTop();
     this._splitText();
     this._clearCache();
     this.textBoxWidth = this.calcTextWidth() || this.cursorWidth || this.MIN_TEXT_WIDTH;
@@ -4152,7 +4159,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     return { selectionStart: graphemeStart, selectionEnd: graphemeStart + graphemeEnd };
   },
 
-  onDeselect: function () {
+  onCancelSelect: function () {
     this.selected = false;
   },
 
@@ -4206,6 +4213,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (this.canvas) {
       this.canvas.fire('text:editing:exited', { target: this });
       isTextChanged && this.canvas.fire('object:modified', { target: this });
+      this.canvas.requestRenderAll();
     }
     return this;
   },
