@@ -608,7 +608,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   _initCanvasHandlers: function (canvas) {
     this._canvasMouseDownHandler = this._canvasMouseDownHandler.bind(this);
     this._canvasMouseMoveHandler = this._canvasMouseMoveHandler.bind(this);
-    this._canvasMouseUpHandler = this._canvasMouseUpHandler.bind(this, canvas);
+    this._canvasMouseUpHandler = this._canvasMouseUpHandler.bind(this);
     this._canvasMouseDblclickHandler = this._canvasMouseDblclickHandler.bind(this);
 
     canvas.on('mouse:down', this._canvasMouseDownHandler);
@@ -637,7 +637,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const draggingTextBox = this._textBoxContainsPoint(pointer);
 
     if (this._isEditingText) {
-      // exit editing
       if (!draggingTextBox) {
         this.exitEditing();
       } else {
@@ -648,6 +647,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         // if (this.selectionStart === this.selectionEnd) {
         //   this.abortCursorAnimation();
         // }
+        this._renderTextBoxSelectionOrCursor();
       }
     }
 
@@ -857,7 +857,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const isMouseInTextBox = this._textBoxContainsPoint(options.pointer);
 
     // mouse move in text box
-    if (this._isDragging && isMouseInTextBox) {
+    if (this._isDragging && this._isEditingText && isMouseInTextBox) {
       var newSelectionStart = this.getSelectionStartFromPointer(options.e),
         currentStart = this.selectionStart,
         currentEnd = this.selectionEnd;
@@ -942,16 +942,17 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
   },
 
-  _canvasMouseUpHandler: function (canvas) {
+  _canvasMouseUpHandler: function (options) {
     if (this._isDragging) {
       this._endDragging();
-    }
 
-    // for text
-    if (canvas._iTextInstances) {
-      canvas._iTextInstances.forEach(function (obj) {
-        obj.__isMousedown = false;
-      });
+      if (this._isEditingText && this._textBoxContainsPoint(options.pointer)) {
+        if (this.selectionStart === this.selectionEnd) {
+          this.initDelayedCursor(true);
+        } else {
+          this._renderTextBoxSelectionOrCursor();
+        }
+      }
     }
   },
 
@@ -3916,7 +3917,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _clearTextArea: function (ctx) {
-    console.log('_clearTextArea');
     // we add 4 pixel, to be sure to do not leave any pixel out
     var width = this.textBoxWidth + 4,
       height = this.textBoxHeight + 4;
@@ -4236,7 +4236,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.fire('editing:exited');
     isTextChanged && this.fire('modified');
     if (this.canvas) {
-      // this.canvas.off('mouse:move', this.mouseMoveHandler);
       this.canvas.fire('text:editing:exited', { target: this });
       isTextChanged && this.canvas.fire('object:modified', { target: this });
     }
