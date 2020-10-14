@@ -15,6 +15,7 @@ import {
   cloneDeep,
   get,
   isEmpty,
+  reduce,
 } from 'lodash';
 
 import BaseObject from './BaseObject';
@@ -2876,15 +2877,31 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
+   * Get connection length
+   * @return {Number}
+   * @private
+   */
+  _getConnectionLength: function (points) {
+    return reduce(
+      points,
+      (result, value, index, self) => {
+        const currentLineLength =
+          index === 0
+            ? 0
+            : Math.abs(value.x + value.y - (self[index - 1].x + self[index - 1].y));
+        return result + currentLineLength;
+      },
+      0
+    );
+  },
+
+  /**
    * Get text coords
    * @return {{x: number, y: number}}
    * @private
    */
   _getTextCoords: function () {
-    const startPort = head(this.points);
-    const endPort = last(this.points);
-    const connectionLength =
-      Math.abs(endPort.x - startPort.x) + Math.abs(endPort.y - startPort.y);
+    const connectionLength = this._getConnectionLength(this.points);
     let result = { x: 0, y: 0 };
     let currentTotalLength = 0;
     forEach(this.points, (item, index) => {
