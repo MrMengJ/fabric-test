@@ -1,7 +1,7 @@
 import { fabric } from 'fabric';
 import { canvasContextMenu } from '../CanvasContextMenu';
 import { updateMiniMap, updateMiniMapVP } from '../helper/utils';
-import { TRANSACTION_TYPE } from '../constants/event';
+import { KEY_CODES, TRANSACTION_TYPE } from '../constants/event';
 
 class EventHandler {
   constructor(Handler) {
@@ -90,29 +90,29 @@ class EventHandler {
   keydown = (e) => {
     const { editable } = this.handler;
     const { isEditing } = this.handler.canvas;
-    if(!isEditing){
-      if (e.keyCode === 32) {  //Space
+    if (!isEditing) {
+      if (e.keyCode === KEY_CODES.SPACE) {
         e.preventDefault();
         this.handler.interactionHandler.grab();
-      } else if (e.ctrlKey && e.keyCode === 67) {  //Ctrl C
+      } else if (e.ctrlKey && e.keyCode === KEY_CODES.C) {
         e.preventDefault();
         this.handler.copy();
-      } else if (e.ctrlKey && e.keyCode === 86) { //Ctrl V
+      } else if (e.ctrlKey && e.keyCode === KEY_CODES.V) {
         e.preventDefault();
         this.handler.paste();
-      } else if (e.keyCode === 8 || e.keyCode === 46) { //Del || Back
+      } else if (e.keyCode === KEY_CODES.BACKSPACE || e.keyCode === KEY_CODES.DELETE) {
         e.preventDefault();
         this.handler.remove();
-      } else if (e.ctrlKey && e.keyCode === 88) { //Ctrl X
+      } else if (e.ctrlKey && e.keyCode === KEY_CODES.X) {
         e.preventDefault();
         this.handler.cut();
-      } else if (e.ctrlKey && e.keyCode === 90) { //Ctrl Z
+      } else if (e.ctrlKey && e.keyCode === KEY_CODES.Z) {
         e.preventDefault();
         this.handler.transactionHandler.undo();
-      }else if (e.ctrlKey && e.keyCode === 89){ //Ctrl Y
+      } else if (e.ctrlKey && e.keyCode === KEY_CODES.Y) {
         e.preventDefault();
         this.handler.transactionHandler.redo();
-      }else if(e.ctrlKey && e.keyCode === 65){ //Ctrl A
+      } else if (e.ctrlKey && e.keyCode === KEY_CODES.A) {
         e.preventDefault();
         this.handler.selectAll();
       }
@@ -167,7 +167,7 @@ class EventHandler {
   };
 
   removed = (event) => {
-      updateMiniMap(this.handler.canvas, this.handler.miniMap);
+    updateMiniMap(this.handler.canvas, this.handler.miniMap);
   };
 
   scaled = () => {
