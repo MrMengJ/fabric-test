@@ -53,7 +53,7 @@ class Handler {
     return true;
   };
 
-  paste = (e) => {
+  paste = e => {
     const {
       onAdd,
       gridOption: { grid = 10 },
@@ -102,7 +102,7 @@ class Handler {
     }
   };
 
-  remove = (target) => {
+  remove = target => {
     const activeObject = target || this.canvas.getActiveObject();
     if (!activeObject) {
       return;
@@ -129,7 +129,7 @@ class Handler {
       this.workarea = null;
     } else {
       this.canvas.discardActiveObject();
-      this.canvas.getObjects().forEach((obj: any) => {
+      this.canvas.getObjects().forEach(obj => {
         if (obj.type === 'grid') {
           return;
         }
