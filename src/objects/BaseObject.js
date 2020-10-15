@@ -158,6 +158,12 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
   },
 
   _render: function (ctx) {
+    if (this.shadow) {
+      ctx.shadowCOlor = this.shadowColor || '#000';
+      ctx.shadowBlur = this.shadowBlur || 3;
+      ctx.shadowOffsetX = this.shadowOffsetX || 0;
+      ctx.shadowOffsetY = this.shadowOffsetY || 0;
+    }
     if (this.gradient) {
       const gradientParam = this.getGradientParam(this);
       let gradient = ctx.createLinearGradient(...gradientParam);
