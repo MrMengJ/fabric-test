@@ -20,25 +20,61 @@ export const DataStore = fabric.util.createClass(Text, {
   startColor: '#fff',
   endColor: '#fff',
   text: '',
-  type:'DataStore',
-  _render: function (ctx) {
-    let w = this.width,
+  type: 'DataStore',
+  _strokeEdge: function (ctx) {
+    const w = this.width,
       h = this.height,
       x = -this.width / 2,
       y = -this.height / 2;
+    ctx.beginPath();
     ctx.moveTo(x, y + h / 3 / 2);
-    ctx.bezierCurveTo(x + w * 0.1, y + (h / 6 + h / 5), x + w * 0.9, y + (h / 6 + h / 5), x + w, y + h / 3 / 2);
+    ctx.bezierCurveTo(
+      x + w * 0.1,
+      y + (h / 6 + h / 5),
+      x + w * 0.9,
+      y + (h / 6 + h / 5),
+      x + w,
+      y + h / 3 / 2
+    );
     ctx.moveTo(x, y + h / 3 / 2);
     ctx.lineTo(x, y + (h - h / 5));
     ctx.bezierCurveTo(x + w * 0.1, y + h, x + w * 0.9, y + h, x + w, y + (h - h / 5));
     ctx.lineTo(x + w, y + h / 3 / 2);
     ctx.bezierCurveTo(
-        x + w * 0.9,
-        y + (h / 6 - h / 5),
-        x + w * 0.1,
-        y + (h / 6 - h / 5),
-        x,
-        y + h / 3 / 2
+      x + w * 0.9,
+      y + (h / 6 - h / 5),
+      x + w * 0.1,
+      y + (h / 6 - h / 5),
+      x,
+      y + h / 3 / 2
+    );
+  },
+  _render: function (ctx) {
+    let w = this.width,
+      h = this.height,
+      x = -this.width / 2,
+      y = -this.height / 2;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h / 3 / 2);
+    ctx.bezierCurveTo(
+      x + w * 0.1,
+      y + (h / 6 + h / 5),
+      x + w * 0.9,
+      y + (h / 6 + h / 5),
+      x + w,
+      y + h / 3 / 2
+    );
+    ctx.moveTo(x, y + h / 3 / 2);
+    ctx.lineTo(x, y + (h - h / 5));
+    ctx.bezierCurveTo(x + w * 0.1, y + h, x + w * 0.9, y + h, x + w, y + (h - h / 5));
+    ctx.lineTo(x + w, y + h / 3 / 2);
+    ctx.bezierCurveTo(
+      x + w * 0.9,
+      y + (h / 6 - h / 5),
+      x + w * 0.1,
+      y + (h / 6 - h / 5),
+      x,
+      y + h / 3 / 2
     );
 
     this._renderPaintInOrder(ctx);

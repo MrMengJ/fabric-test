@@ -175,10 +175,10 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
       ctx.fillStyle = this.fill;
       this.fill !== null && ctx.fill();
     }
-      if(this.strokeWidth !== undefined && this.strokeWidth !== 0){
-          ctx.strokeWidth = this.strokeWidth;
-          ctx.stroke();
-      }
+    if (this.strokeWidth !== undefined && this.strokeWidth !== 0) {
+      ctx.strokeWidth = this.strokeWidth;
+      ctx.stroke();
+    }
 
     this.callSuper('_render', ctx);
     this._renderAnchors(ctx);
@@ -395,6 +395,45 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
   _getActualAngle: function () {
     const { angle } = fabric.util.qrDecompose(this.calcTransformMatrix());
     return angle;
+  },
+
+  /**
+   * Get current transform
+   */
+  getCurrentTransform: function () {
+    const zoom = this.canvas.getZoom();
+    const transformMatrix = this.calcTransformMatrix();
+    return {
+      scaleX: transformMatrix[0] * zoom,
+      skewX: transformMatrix[1] * zoom,
+      skewY: transformMatrix[2] * zoom,
+      scaleY: transformMatrix[3] * zoom,
+      translateX: transformMatrix[4] * zoom,
+      translateY: transformMatrix[5] * zoom,
+    };
+  },
+
+  /**
+   * Stroke shape edge
+   */
+  strokeEdge: function () {
+    if (!this.canvas) {
+      return;
+    }
+
+    const ctx = this.canvas.contextContainer;
+    ctx.save();
+    const {
+      scaleX,
+      skewX,
+      skewY,
+      scaleY,
+      translateX,
+      translateY,
+    } = this.getCurrentTransform();
+    ctx.transform(scaleX, skewX, skewY, scaleY, translateX, translateY);
+    this._strokeEdge(ctx);
+    ctx.restore();
   },
 });
 
