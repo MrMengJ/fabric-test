@@ -643,10 +643,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this.inCompositionMode = false;
         this.setCursorByClick(options.e);
 
-        // this.__selectionStartOnMouseDown = this.selectionStart;
-        // if (this.selectionStart === this.selectionEnd) {
-        //   this.abortCursorAnimation();
-        // }
+        this.__selectionStartOnMouseDown = this.selectionStart;
+        if (this.selectionStart === this.selectionEnd) {
+          this.abortCursorAnimation();
+        }
         this._renderTextBoxSelectionOrCursor();
       }
     }
@@ -1970,15 +1970,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @default
    */
   minWidth: 20,
-
-  /**
-   * Minimum calculated width of a textbox, in pixels.
-   * fixed to 2 so that an empty textbox cannot go to 0
-   * and is still selectable without text.
-   * @type Number
-   * @default
-   */
-  dynamicMinWidth: 2,
 
   /**
    * Cached array of text wrapping.
