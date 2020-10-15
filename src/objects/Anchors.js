@@ -136,6 +136,7 @@ Anchors.prototype = {
     ctx.save();
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = '#4285F4';
+    ctx.setLineDash([]);
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.arc(left, top, size / 2, 0, 2 * Math.PI, false);

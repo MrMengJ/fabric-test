@@ -99,7 +99,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @type Number
    * @default
    */
-  strokeWidth: 2,
+  strokeWidth: 1,
 
   /**
    * stroke style
@@ -176,6 +176,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @type Object
    */
   toPoint: null,
+
+  /**
+   * Object connection anchors
+   * @type Array
+   * @default
+   */
+  anchors: null,
 
   /**
    * dragging line or point info

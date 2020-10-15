@@ -1,4 +1,5 @@
 import { fabric } from 'fabric';
+import { forEach } from 'lodash';
 
 import Group from './Group';
 import ActiveSelection from './ActiveSelection';
@@ -2776,6 +2777,35 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
     this.setCursor(this.defaultCursor);
     // clear selection and current transformation
     this._groupSelector = null;
+  },
+
+  /**
+   * Set connection mode
+   * @param {Boolean} value Connection mode value
+   */
+  setConnectionMode: function (value) {
+    this.set('connectionMode', value);
+    const allObjects = this.getObjects();
+    forEach(allObjects, (item) => {
+      if (item.hasControls) {
+        if (value) {
+          item.setControlsVisibility({
+            ml: false,
+            mt: false,
+            mr: false,
+            mb: false,
+          });
+        } else {
+          item.setControlsVisibility({
+            ml: true,
+            mt: true,
+            mr: true,
+            mb: true,
+          });
+        }
+      }
+    });
+    this.requestRenderAll();
   },
 });
 

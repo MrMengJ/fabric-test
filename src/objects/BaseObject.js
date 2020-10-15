@@ -158,6 +158,7 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
   },
 
   _render: function (ctx) {
+    ctx.beginPath();
     if (this.shadow) {
       ctx.shadowCOlor = this.shadowColor || '#000';
       ctx.shadowBlur = this.shadowBlur || 3;
@@ -248,10 +249,6 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
 
     let finalMatrix = multiplyMatrices(startMatrix, rotateMatrix);
     const coords = {};
-
-    console.log('transformMatrix', transformMatrix);
-    console.log('dim', dim);
-
     finalMatrix = multiplyMatrices(finalMatrix, [1 / vpt[0], 0, 0, 1 / vpt[3], 0, 0]);
     this.forEachAnchor(function (anchor, key, fabricObject) {
       coords[key] = anchor.positionHandler(dim, finalMatrix, fabricObject);
