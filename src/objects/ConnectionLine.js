@@ -19,6 +19,7 @@ import {
 } from 'lodash';
 
 import BaseObject from './BaseObject';
+import { ObjectType } from './constants';
 
 const ARROW_TYPE = {
   none: 'none',
@@ -56,7 +57,7 @@ const defaultTextStyle = {
 };
 
 const ConnectionLine = fabric.util.createClass(BaseObject, {
-  type: 'ConnectionLine',
+  type: ObjectType.ConnectionLine,
 
   /**
    * When set to `false`, an object can not be a target of events. All events propagate through it. Introduced in v1.3.4
@@ -636,7 +637,14 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _canvasMouseDownHandler: function (options) {
-    const { pointer } = options;
+    const { pointer, target } = options;
+    if (!isEqual(target, this)) {
+      if (this.selected) {
+        this.onCancelSelect();
+      }
+      return;
+    }
+
     const isDragStartPort = this._startPortContainsPoint(pointer);
     const isDragEndPort = this._endPortContainsPoint(pointer);
     const draggingControlPoint = this._controlPointsContainsPoint(pointer);
@@ -658,35 +666,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
     }
 
-    if (
-      isDragStartPort ||
-      isDragEndPort ||
-      draggingControlPoint ||
-      draggingLine ||
-      draggingTextBox
-    ) {
-      // must reset when mouse down
-      this.canvas.setActiveObject(this);
-
-      this._startDraggingPoint = pointer;
-      this._startDragging(
-        isDragStartPort,
-        isDragEndPort,
-        draggingControlPoint,
-        draggingLine,
-        draggingTextBox,
-        pointer
-      );
-      this.canvas._isDraggingConnectionLine = true;
-      if (!this.selected) {
-        this.selected = true;
-        this.canvas.requestRenderAll();
-      }
-    } else {
-      if (this.selected) {
-        this.onCancelSelect();
-        this.canvas.requestRenderAll();
-      }
+    this._startDraggingPoint = pointer;
+    this._startDragging(
+      isDragStartPort,
+      isDragEndPort,
+      draggingControlPoint,
+      draggingLine,
+      draggingTextBox,
+      pointer
+    );
+    this.canvas._isDraggingConnectionLine = true;
+    if (!this.selected) {
+      this.selected = true;
     }
   },
 
@@ -919,6 +910,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _canvasMouseMoveHandler: function (options) {
+    const { target } = options;
+    if (!isEqual(target, this)) {
+      return;
+    }
+
     this._mouseMoveHandlerInTextBox(options);
 
     this._setHoverCursor(options.pointer);
@@ -953,6 +949,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _canvasMouseUpHandler: function (options) {
+    const { target } = options;
+    if (!isEqual(target, this)) {
+      return;
+    }
+
     if (this._isDragging) {
       this._endDragging();
 
@@ -967,7 +968,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _canvasMouseDblclickHandler: function (options) {
-    const { pointer } = options;
+    const { pointer, target } = options;
+    if (!isEqual(target, this)) {
+      return;
+    }
+
     if (this._linesContainsPoint(pointer) || this._textBoxContainsPoint(pointer)) {
       if (!this._isEditingText) {
         this.enterEditing(options.e);
@@ -1058,7 +1063,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
-   * Checks if point is inside the object
+   * Checks if point is inside the coords
    * @param {fabric.Point} point Point to check against
    * @param {Object} coords object corner coords
    * @param {Object} [lines] object returned from @method _getImageLines
@@ -1069,6 +1074,26 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const xPoints = this._findCrossPoints(point, theLines);
     // if xPoints is odd then point is inside the object
     return xPoints !== 0 && xPoints % 2 === 1;
+  },
+
+  /**
+   * Checks if point is inside the connection line range
+   * @param {fabric.Point} point Point to check against
+   * @return {Boolean} true if point is inside the connection line range
+   */
+  isInConnectionLineRange: function (point) {
+    const linesContainsPoint = this._linesContainsPoint(point);
+    const startPortContainsPoint = this._startPortContainsPoint(point);
+    const endPortContainsPoint = this._endPortContainsPoint(point);
+    const controlPoint = this._controlPointsContainsPoint(point);
+    const textBoxContainsPoint = this._textBoxContainsPoint(point);
+    return (
+      linesContainsPoint ||
+      startPortContainsPoint ||
+      endPortContainsPoint ||
+      controlPoint ||
+      textBoxContainsPoint
+    );
   },
 
   /**

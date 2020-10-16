@@ -3,6 +3,7 @@ import { forEach } from 'lodash';
 
 import Group from './Group';
 import ActiveSelection from './ActiveSelection';
+import { ObjectType } from './constants';
 
 // canvas.class.js
 var getPointer = fabric.util.getPointer,
@@ -733,9 +734,15 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @return {Boolean} true if the translation occurred
    */
   _translateObject: function (x, y) {
-    var transform = this._currentTransform,
-      target = transform.target,
-      newLeft = x - transform.offsetX,
+    const transform = this._currentTransform;
+    const target = transform.target;
+
+    // if drag connection line, don't handler , connection lien object will handler by oneself
+    if (target.type === ObjectType.ConnectionLine) {
+      return;
+    }
+
+    const newLeft = x - transform.offsetX,
       newTop = y - transform.offsetY,
       moveX = !target.get('lockMovementX') && target.left !== newLeft,
       moveY = !target.get('lockMovementY') && target.top !== newTop;
@@ -894,7 +901,9 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
       obj.evented &&
       // http://www.geog.ubc.ca/courses/klink/gis.notes/ncgia/u32.html
       // http://idav.ucdavis.edu/~okreylos/TAship/Spring2000/PointInPolygon.html
-      (obj.containsPoint(pointer) || !!obj._findTargetCorner(pointer))
+      (obj.containsPoint(pointer) ||
+        !!obj._findTargetCorner(pointer) ||
+        (obj.type === ObjectType.ConnectionLine && obj.isInConnectionLineRange(pointer)))
     ) {
       if ((this.perPixelTargetFind || obj.perPixelTargetFind) && !obj.isEditing) {
         var isTransparent = this.isTargetTransparent(
