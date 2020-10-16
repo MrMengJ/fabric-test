@@ -4403,4 +4403,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 });
 
+ConnectionLine.fromObject = (options, callback) => {
+  return callback(new ConnectionLine(options));
+};
+
+window.fabric.ConnectionLine = ConnectionLine;
+
 export default ConnectionLine;
