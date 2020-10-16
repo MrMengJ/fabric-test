@@ -270,7 +270,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
   _renderControl: function (ctx) {
-    if (this.selected) {
+    if (this.selfIsSelected()) {
       ctx.save();
       this._drawStartPoint(ctx);
       this._drawEndPoint(ctx);
@@ -639,9 +639,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   _canvasMouseDownHandler: function (options) {
     const { pointer, target } = options;
     if (!isEqual(target, this)) {
-      if (this.selected) {
-        this.onCancelSelect();
-      }
       return;
     }
 
@@ -676,9 +673,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       pointer
     );
     this.canvas._isDraggingConnectionLine = true;
-    if (!this.selected) {
-      this.selected = true;
-    }
   },
 
   /**
@@ -702,7 +696,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
 
       // control point cursor
-      if (this.selected) {
+      if (this.selfIsSelected()) {
         const hoveredControlPoint = this._controlPointsContainsPoint(point);
         if (hoveredControlPoint) {
           const matchedLinePoints = this._getControlPointCorrespondingLinePathPoints(
@@ -1563,6 +1557,23 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
     const textBoxCornerCoords = this._getTextBoxCornerCoords(this._getTextCoords());
     return this._containsPoint(point, textBoxCornerCoords);
+  },
+
+  /**
+   * Checks is selected
+   * @return {Boolean} true if be selected
+   */
+  selfIsSelected: function () {
+    if (!this.canvas) {
+      return false;
+    }
+    const activeObjects = this.canvas.getActiveObjects();
+    for (let i = 0; i < activeObjects.length; i++) {
+      if (isEqual(activeObjects[i], this)) {
+        return true;
+      }
+    }
+    return false;
   },
 
   // For text
@@ -4199,10 +4210,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     return { selectionStart: graphemeStart, selectionEnd: graphemeStart + graphemeEnd };
   },
 
-  onCancelSelect: function () {
-    this.selected = false;
-  },
-
   /**
    * Aborts cursor animation and clears all timeouts
    */
@@ -4232,7 +4239,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   exitEditing: function () {
     const isTextChanged = this._textBeforeEdit !== this.text;
     const hiddenTextarea = this.hiddenTextarea;
-    this.selected = false;
     this._isEditingText = false;
 
     this.selectionEnd = this.selectionStart;
