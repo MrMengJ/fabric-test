@@ -290,6 +290,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
   _render: function (ctx) {
+    ctx.beginPath();
     this.callSuper('_render', ctx);
 
     let len = this.points.length;

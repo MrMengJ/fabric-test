@@ -158,7 +158,6 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
   },
 
   _render: function (ctx) {
-    ctx.beginPath();
     if (this.shadow) {
       ctx.shadowCOlor = this.shadowColor || '#000';
       ctx.shadowBlur = this.shadowBlur || 3;
