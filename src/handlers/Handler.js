@@ -1,8 +1,8 @@
-import {cloneDeep, has} from 'lodash';
-import {fabric} from 'fabric';
+import { cloneDeep, has } from 'lodash';
 
-import {GridOption, GuidelineOption, updateMiniMap} from '../helper/utils';
-import {TRANSACTION_TYPE} from '../constants/event';
+import { GridOption, GuidelineOption, updateMiniMap } from '../helper/utils';
+import { TRANSACTION_TYPE } from '../constants/event';
+import ActiveSelection from '../objects/ActiveSelection';
 
 import AlignmentLineHandler from './AlignmentLineHandler';
 import EventHandler from './EventHandler';
@@ -152,9 +152,7 @@ class Handler {
     const filteredObjects = this.canvas.getObjects().filter((obj) => {
       if (obj.type === 'grid') {
         return false;
-      } else if (!obj.evented) {
-        return false;
-      }  else if (obj.locked) {
+      } else if (obj.locked) {
         return false;
       }
       return true;
@@ -167,7 +165,7 @@ class Handler {
       this.canvas.renderAll();
       return;
     }
-    const activeSelection = new fabric.ActiveSelection(filteredObjects, {
+    const activeSelection = new ActiveSelection(filteredObjects, {
       canvas: this.canvas
     });
     this.canvas.setActiveObject(activeSelection);
