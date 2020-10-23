@@ -740,7 +740,7 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
     // if drag some point of connection line , don't handler , connection line object will handler by oneself
     if (
       target.type === ObjectType.ConnectionLine &&
-      (target._isEditingText ||
+      (target.isEditing ||
         includes(
           [
             CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort,
@@ -1436,12 +1436,7 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   },
 
   setViewportTransform: function (vpt) {
-    // _isEditingText is for connection line
-    if (
-      this.renderOnAddRemove &&
-      this._activeObject &&
-      (this._activeObject.isEditing || this._activeObject._isEditingText)
-    ) {
+    if (this.renderOnAddRemove && this._activeObject && this._activeObject.isEditing) {
       this._activeObject.clearContextTop();
     }
     fabric.StaticCanvas.prototype.setViewportTransform.call(this, vpt);

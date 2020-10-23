@@ -859,7 +859,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const draggingLine = this._linesContainsPoint(pointer);
     const draggingTextBox = this._textBoxContainsPoint(pointer);
 
-    if (this._isEditingText) {
+    if (this.isEditing) {
       if (!draggingTextBox) {
         this.exitEditing();
       } else {
@@ -894,7 +894,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (!this._isDragging && this.canvas) {
       //  textBox cursor
       if (this._textBoxContainsPoint(point)) {
-        const cursor = this._isEditingText ? 'text' : 'move';
+        const cursor = this.isEditing ? 'text' : 'move';
         this.canvas.setCursor(cursor);
         return;
       }
@@ -1063,7 +1063,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const isMouseInTextBox = this._textBoxContainsPoint(options.pointer);
 
     // mouse move in text box
-    if (this._isDragging && this._isEditingText && isMouseInTextBox) {
+    if (this._isDragging && this.isEditing && isMouseInTextBox) {
       var newSelectionStart = this.getSelectionStartFromPointer(options.e),
         currentStart = this.selectionStart,
         currentEnd = this.selectionEnd;
@@ -1092,7 +1092,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     else if (
       this._isDragging &&
       this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.textBox &&
-      !this._isEditingText
+      !this.isEditing
     ) {
       const zoom = this.canvas.getZoom();
       const point = {
@@ -1168,7 +1168,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (this._isDragging) {
       this._endDragging();
 
-      if (this._isEditingText && this._textBoxContainsPoint(options.pointer)) {
+      if (this.isEditing && this._textBoxContainsPoint(options.pointer)) {
         if (this.selectionStart === this.selectionEnd) {
           this.initDelayedCursor(true);
         } else {
@@ -1185,13 +1185,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
 
     if (this._linesContainsPoint(pointer) || this._textBoxContainsPoint(pointer)) {
-      if (!this._isEditingText) {
+      if (!this.isEditing) {
         this.enterEditing(options.e);
       }
 
-      this._isEditingText = true;
-
-      if (this._isEditingText) {
+      if (this.isEditing) {
         this.selectAll();
       }
     }
@@ -1809,7 +1807,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @type Boolean
    * @default
    */
-  _isEditingText: false,
+  isEditing: false,
 
   /**
    * text position
@@ -2276,7 +2274,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (this.__skipDimension) {
       return;
     }
-    if (this._isEditingText) {
+    if (this.isEditing) {
       this.initDelayedCursor();
     }
     this.clearContextTop();
@@ -2665,7 +2663,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _renderTextBackground: function (ctx, points) {
-    if (!this.textStyle.backgroundColor || (!this.text && !this._isEditingText)) {
+    if (!this.textStyle.backgroundColor || (!this.text && !this.isEditing)) {
       return;
     }
 
@@ -3260,7 +3258,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {Event} e Event object
    */
   onKeyDown: function (e) {
-    if (!this._isEditingText) {
+    if (!this.isEditing) {
       return;
     }
     if (e.keyCode in this.keysMap) {
@@ -3289,7 +3287,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {Event} e Event object
    */
   onKeyUp: function (e) {
-    if (!this._isEditingText || this._copyDone || this.inCompositionMode) {
+    if (!this.isEditing || this._copyDone || this.inCompositionMode) {
       this._copyDone = false;
       return;
     }
@@ -3311,7 +3309,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     var fromPaste = this.fromPaste;
     this.fromPaste = false;
     e && e.stopPropagation();
-    if (!this._isEditingText) {
+    if (!this.isEditing) {
       return;
     }
     // decisions about style changes.
@@ -4156,7 +4154,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * Prepare and clean the contextTop
    */
   clearContextTop: function (skipRestore) {
-    if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
+    if (!this.isEditing || !this.canvas || !this.canvas.contextTop) {
       return;
     }
     const ctx = this.canvas.contextTop;
@@ -4177,7 +4175,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _renderTextBoxSelectionOrCursor: function () {
-    if (!this._isEditingText || !this.canvas || !this.canvas.contextTop) {
+    if (!this.isEditing || !this.canvas || !this.canvas.contextTop) {
       return;
     }
 
@@ -4368,7 +4366,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @chainable
    */
   enterEditing: function (e) {
-    if (this._isEditingText || !this.editable) {
+    if (this.isEditing || !this.editable) {
       return;
     }
 
@@ -4376,7 +4374,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       this.canvas.calcOffset();
     }
 
-    this._isEditingText = true;
+    this.isEditing = true;
+    this.canvas.isEditing = true;
 
     this.initHiddenTextarea(e);
     this.hiddenTextarea.focus();
@@ -4471,7 +4470,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   exitEditing: function () {
     const isTextChanged = this._textBeforeEdit !== this.text;
     const hiddenTextarea = this.hiddenTextarea;
-    this._isEditingText = false;
+    this.isEditing = false;
+    this.canvas.isEditing = false;
 
     this.selectionEnd = this.selectionStart;
 
@@ -4556,7 +4556,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       this.selectionStart = newSelection;
       this.selectionEnd = newSelection;
     }
-    if (this._isEditingText) {
+    if (this.isEditing) {
       this._fireSelectionChanged();
       this._updateTextarea();
     }
