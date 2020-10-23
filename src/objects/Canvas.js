@@ -1,9 +1,9 @@
 import { fabric } from 'fabric';
-import { forEach } from 'lodash';
+import { forEach, get, includes } from 'lodash';
 
 import Group from './Group';
 import ActiveSelection from './ActiveSelection';
-import { ObjectType } from './constants';
+import { CONNECTION_LINE_DRAGGING_OBJECT_TYPE, ObjectType } from './constants';
 
 // canvas.class.js
 var getPointer = fabric.util.getPointer,
@@ -737,8 +737,19 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
     const transform = this._currentTransform;
     const target = transform.target;
 
-    // if drag connection line, don't handler , connection lien object will handler by oneself
-    if (target.type === ObjectType.ConnectionLine) {
+    // if drag some point of connection line , don't handler , connection line object will handler by oneself
+    if (
+      target.type === ObjectType.ConnectionLine &&
+      (target._isEditingText ||
+        includes(
+          [
+            CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort,
+            CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort,
+            CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint,
+          ],
+          target._draggingObject.type
+        ))
+    ) {
       return;
     }
 
@@ -887,6 +898,20 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
   },
 
   /**
+   * Checks point is inside the connection line range.
+   * @param {Object} [pointer] x,y object of point coordinates we want to check.
+   * @param {fabric.Object} obj Object to test against
+   * @return {Boolean} true if point is contained within an area of given object
+   * @private
+   */
+  _checkConnectionLine: function (pointer, obj) {
+    return !(
+      get(obj, 'type') === ObjectType.ConnectionLine &&
+      !obj.isInConnectionLineRange(pointer)
+    );
+  },
+
+  /**
    * Checks point is inside the object.
    * @param {Object} [pointer] x,y object of point coordinates we want to check.
    * @param {fabric.Object} obj Object to test against
@@ -899,11 +924,10 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
       obj &&
       obj.visible &&
       obj.evented &&
+      this._checkConnectionLine(pointer, obj) &&
       // http://www.geog.ubc.ca/courses/klink/gis.notes/ncgia/u32.html
       // http://idav.ucdavis.edu/~okreylos/TAship/Spring2000/PointInPolygon.html
-      (obj.containsPoint(pointer) ||
-        !!obj._findTargetCorner(pointer) ||
-        (obj.type === ObjectType.ConnectionLine && obj.isInConnectionLineRange(pointer)))
+      (obj.containsPoint(pointer) || !!obj._findTargetCorner(pointer))
     ) {
       if ((this.perPixelTargetFind || obj.perPixelTargetFind) && !obj.isEditing) {
         var isTransparent = this.isTargetTransparent(

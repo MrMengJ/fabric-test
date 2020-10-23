@@ -1,4 +1,5 @@
 import { fabric } from 'fabric';
+import memoizeOne from 'memoize-one';
 import {
   findIndex,
   forEach,
@@ -16,10 +17,12 @@ import {
   get,
   isEmpty,
   reduce,
+  minBy,
+  maxBy,
 } from 'lodash';
 
 import BaseObject from './BaseObject';
-import { ObjectType } from './constants';
+import { CONNECTION_LINE_DRAGGING_OBJECT_TYPE, ObjectType } from './constants';
 
 const ARROW_TYPE = {
   none: 'none',
@@ -37,14 +40,6 @@ const DIRECTION = {
 const EASY_SELECTABLE_LINE_WIDTH = 12;
 
 const MIN_DISTANCE_AROUND_SHAPE = 10;
-
-const DRAGGING_OBJECT_TYPE = {
-  startPort: 'startPort',
-  endPort: 'endPort',
-  controlPoint: 'controlPoint',
-  line: 'line',
-  textBox: 'textBox',
-};
 
 const MIN_DRAG_DISTANCE = 2;
 
@@ -96,11 +91,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   points: null,
 
   /**
-   * Width of a stroke used to render this object
+   * Width of a line used to render this object
    * @type Number
    * @default
    */
-  strokeWidth: 1,
+  lineWidth: 1,
+
+  /**
+   * Width of a stroke used to render this object, must be 0
+   * @type Number
+   * @default
+   */
+  strokeWidth: 0,
 
   /**
    * stroke style
@@ -186,6 +188,34 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   anchors: null,
 
   /**
+   * Top position of an object. Note that by default it's relative to object top. You can change this by setting originY={top/center/bottom}
+   * @type Number
+   * @default
+   */
+  top: 0,
+
+  /**
+   * Left position of an object. Note that by default it's relative to object left. You can change this by setting originX={left/center/right}
+   * @type Number
+   * @default
+   */
+  left: 0,
+
+  /**
+   * Object width
+   * @type Number
+   * @default
+   */
+  width: 0,
+
+  /**
+   * Object height
+   * @type Number
+   * @default
+   */
+  height: 0,
+
+  /**
    * dragging line or point info
    * @type Object
    */
@@ -210,26 +240,28 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.initDimensions();
 
     this._initPoints();
+    this._initSize(this.points);
+    this._initPosition(this.points);
     this._initDirection();
     this.initBehavior();
   },
 
-  _renderFromArrow: function (ctx) {
+  _renderFromArrow: function (ctx, points) {
     let extensionDirection = this._getExtensionDirection(this.fromDirection);
-    const firstPoint = head(this.points);
+    const firstPoint = head(points);
     const startPoint = {
-      x: firstPoint.x - this.strokeWidth / 2,
-      y: firstPoint.y - this.strokeWidth / 2,
+      x: firstPoint.x,
+      y: firstPoint.y,
     };
     this._drawArrow(ctx, extensionDirection, startPoint);
   },
 
-  _renderToArrow: function (ctx) {
+  _renderToArrow: function (ctx, points) {
     let extensionDirection = this._getExtensionDirection(this.toDirection);
-    const lastPoint = last(this.points);
+    const lastPoint = last(points);
     const startPoint = {
-      x: lastPoint.x - this.strokeWidth / 2,
-      y: lastPoint.y - this.strokeWidth / 2,
+      x: lastPoint.x,
+      y: lastPoint.y,
     };
     this._drawArrow(ctx, extensionDirection, startPoint);
   },
@@ -238,16 +270,17 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * render arrow
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
+   * @param {Array} points Points
    */
-  _renderArrow: function (ctx) {
+  _renderArrow: function (ctx, points) {
     if (this.arrowType === ARROW_TYPE.none) {
       return;
     }
     if (this.arrowType === ARROW_TYPE.normal) {
-      this._renderToArrow(ctx);
+      this._renderToArrow(ctx, points);
     } else if (this.arrowType === ARROW_TYPE['double-sided']) {
-      this._renderToArrow(ctx);
-      this._renderFromArrow(ctx);
+      this._renderToArrow(ctx, points);
+      this._renderFromArrow(ctx, points);
     }
   },
 
@@ -255,12 +288,15 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * render connection line
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
+   * @param {Array} points Points
    */
-  _renderLine: function (ctx) {
+  _renderLine: function (ctx, points) {
     ctx.save();
-    ctx.lineWidth = this.strokeWidth;
-    this._drawLine(ctx);
-    this._renderStroke(ctx);
+    ctx.lineWidth = this.lineWidth;
+    this._drawLine(ctx, points);
+    const scaling = this.getObjectScaling();
+    ctx.scale(1 / scaling.scaleX, 1 / scaling.scaleY);
+    ctx.stroke();
     ctx.restore();
   },
 
@@ -268,13 +304,14 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * render control
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
+   * @param {Array} points Points
    */
-  _renderControl: function (ctx) {
-    if (this.selfIsSelected()) {
+  _renderControl: function (ctx, points) {
+    if (!this.group && this.selfIsSelected()) {
       ctx.save();
-      this._drawStartPoint(ctx);
-      this._drawEndPoint(ctx);
-      this._drawControlPoints(ctx);
+      this._drawStartPoint(ctx, points);
+      this._drawEndPoint(ctx, points);
+      this._drawControlPoints(ctx, points);
       ctx.restore();
     }
   },
@@ -283,6 +320,131 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.callSuper('render', ctx);
     this.cursorOffsetCache = {};
     this._renderTextBoxSelectionOrCursor();
+  },
+
+  getNewPoints: memoizeOne(function (leftTop, width, height) {
+    // TODO temp function, need alter
+    let finalMatrix;
+    if (this.group) {
+      finalMatrix = this.calcTransformMatrix();
+    } else {
+      const translateMatrix = this._calcTranslateMatrix();
+      const rotateMatrix = this._calcRotateMatrix();
+      finalMatrix = fabric.util.multiplyTransformMatrices(translateMatrix, rotateMatrix);
+    }
+    const dim = this.group
+      ? this._getNonTransformedDimensions()
+      : this._getTransformedDimensions();
+    const w = dim.x / 2;
+    const h = dim.y / 2;
+    const transformPoint = fabric.util.transformPoint;
+
+    const aCoords = {
+      // corners
+      tl: transformPoint({ x: -w, y: -h }, finalMatrix),
+      tr: transformPoint({ x: w, y: -h }, finalMatrix),
+      bl: transformPoint({ x: -w, y: h }, finalMatrix),
+      br: transformPoint({ x: w, y: h }, finalMatrix),
+    };
+
+    const { x: left, y: top } = leftTop;
+    let pointChanged = false;
+    const moveX = this._prevLeft ? left - this._prevLeft : 0;
+    const moveY = this._prevTop ? top - this._prevTop : 0;
+    const widthChange = this._prevWidth ? width - this._prevWidth : 0;
+    const heightChange = this._prevHeight ? height - this._prevHeight : 0;
+
+    if (moveX || moveY || widthChange || heightChange) {
+      this.fromPoint.x = aCoords.tl.x;
+      this.fromPoint.y = aCoords.tl.y;
+      this.toPoint.x = aCoords.br.x;
+      this.toPoint.y = aCoords.br.y;
+      pointChanged = true;
+    }
+
+    // const toWardRight = this.fromPoint.x <= this.toPoint.x;
+    // const toWardBottom = this.fromPoint.y <= this.toPoint.y;
+    //
+    // const resizeX = widthChange !== 0;
+    // const resizeY = heightChange !== 0;
+    // const resizeLeft = resizeX && moveX < 0;
+    // const resizeRight = resizeX && moveX >= 0;
+    // const resizeTop = resizeY && moveY < 0;
+    // const resizeBottom = resizeY && moveY >= 0;
+    //
+    // if (resizeLeft) {
+    //   if (toWardRight) {
+    //     this.fromPoint.x += moveX;
+    //     pointChanged = true;
+    //   } else {
+    //     this.toPoint.x += moveX;
+    //     pointChanged = true;
+    //   }
+    // }
+    //
+    // if (resizeRight) {
+    //   if (toWardRight) {
+    //     this.toPoint.x += widthChange;
+    //     pointChanged = true;
+    //   } else {
+    //     this.fromPoint.x += widthChange;
+    //     pointChanged = true;
+    //   }
+    // }
+    //
+    // if (resizeTop) {
+    //   if (toWardBottom) {
+    //     this.fromPoint.y += moveY;
+    //     pointChanged = true;
+    //   } else {
+    //     this.toPoint.y += moveY;
+    //     pointChanged = true;
+    //   }
+    // }
+    //
+    // if (resizeBottom) {
+    //   if (toWardBottom) {
+    //     this.toPoint.y += heightChange;
+    //     pointChanged = true;
+    //   } else {
+    //     this.fromPoint.y += heightChange;
+    //     pointChanged = true;
+    //   }
+    // }
+    //
+    // if (!resizeX && !resizeY && (moveX || moveY)) {
+    //   this.fromPoint = {
+    //     x: this.fromPoint.x + moveX,
+    //     y: this.fromPoint.y + moveY,
+    //   };
+    //   this.toPoint = {
+    //     x: this.toPoint.x + moveX,
+    //     y: this.toPoint.y + moveY,
+    //   };
+    //   pointChanged = true;
+    // }
+    //
+    if (pointChanged) {
+      this._updatePoints();
+    }
+
+    this._prevLeft = left;
+    this._prevTop = top;
+    this._prevWidth = width;
+    this._prevHeight = height;
+  }),
+
+  /**
+   * Get actual left and top
+   * @private
+   * @return {{x:number,y:number}}
+   */
+  _getLeftTop: function () {
+    if (this.group) {
+      const matrix = this.group.calcTransformMatrix();
+      return fabric.util.transformPoint({ x: this.left, y: this.top }, matrix);
+    }
+    return { x: this.left, y: this.top };
   },
 
   /**
@@ -299,12 +461,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       return;
     }
 
-    this._renderLine(ctx);
-    this._renderArrow(ctx);
-    this._renderControl(ctx);
+    const leftTop = this._getLeftTop();
+    const actualWidth = this._getActualWidth(true);
+    const actualHeight = this._getActualHeight(true);
+    this.getNewPoints(leftTop, actualWidth, actualHeight);
+    const transformPoints = this._getTransformPoints(this.points);
 
-    this._renderTextBackground(ctx);
-    this._renderText(ctx);
+    this._renderLine(ctx, transformPoints);
+    this._renderArrow(ctx, transformPoints);
+    this._renderControl(ctx, transformPoints);
+
+    this._renderTextBackground(ctx, transformPoints);
+    this._renderText(ctx, transformPoints);
   },
 
   /**
@@ -443,6 +611,41 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
+   * initialize size
+   * @param {Array} points
+   * @private
+   */
+  _initSize: function (points) {
+    if (isEmpty(points)) {
+      return;
+    }
+    const minX = minBy(points, (item) => item.x).x;
+    const maxX = maxBy(points, (item) => item.x).x;
+    const minY = minBy(points, (item) => item.y).y;
+    const maxY = maxBy(points, (item) => item.y).y;
+    // TODO temp function, need alter ,think about lineWidth
+    // this.width = maxX + this.lineWidth / 2 - (minX - this.lineWidth / 2);
+    this.height = maxY + this.lineWidth / 2 - (minY - this.lineWidth / 2);
+    this.width = maxX - minX;
+    // this.height = maxY - minY;
+  },
+
+  /**
+   * initialize position
+   * @param {Array} points
+   * @private
+   */
+  _initPosition: function (points) {
+    if (isEmpty(points)) {
+      return;
+    }
+    const minX = minBy(points, (item) => item.x).x;
+    const minY = minBy(points, (item) => item.y).y;
+    this.left = minX;
+    this.top = minY;
+  },
+
+  /**
    * initialize direction
    * @private
    */
@@ -459,11 +662,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @private
    * @return {Array} control points
    */
-  _getControlPoints: function () {
+  _getControlPoints: function (points = this.points) {
     const result = [];
-    forEach(this.points, (item, index) => {
-      if (index < this.points.length - 1) {
-        const nextOne = this.points[index + 1];
+    forEach(points, (item, index) => {
+      if (index < points.length - 1) {
+        const nextOne = points[index + 1];
         result[index] = {
           x: (item.x + nextOne.x) / 2,
           y: (item.y + nextOne.y) / 2,
@@ -473,87 +676,89 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     return result;
   },
 
-  _drawStartPoint: function (ctx) {
+  _drawStartPoint: function (ctx, points) {
+    const firstPoint = head(points);
+    const { scaleX, scaleY } = this.getObjectScaling();
+
+    ctx.save();
+
     ctx.strokeStyle = '#137CBD';
     ctx.fillStyle = '#137CBD';
     ctx.beginPath();
-    const firstPoint = head(this.points);
-    ctx.arc(
-      firstPoint.x - this.strokeWidth / 2,
-      firstPoint.y - this.strokeWidth / 2,
-      5,
-      0,
-      Math.PI * 2
-    );
+    ctx.translate(firstPoint.x, firstPoint.y);
+    ctx.scale(1 / scaleX, 1 / scaleY);
+    ctx.arc(0, 0, 5, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.restore();
   },
 
-  _drawEndPoint: function (ctx) {
+  _drawEndPoint: function (ctx, points) {
+    const lastPoint = last(points);
+    const { scaleX, scaleY } = this.getObjectScaling();
+
+    ctx.save();
+    ctx.translate(lastPoint.x, lastPoint.y);
+    ctx.scale(1 / scaleX, 1 / scaleY);
+
+    // draw outer circle
     ctx.beginPath();
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = '#137CBD';
-    ctx.lineWidth = 2;
-    const lastPoint = last(this.points);
-    ctx.arc(
-      lastPoint.x - this.strokeWidth / 2,
-      lastPoint.y - this.strokeWidth / 2,
-      4,
-      0,
-      Math.PI * 2
-    );
+    ctx.lineWidth = 3;
+    ctx.arc(0, 0, 4, 0, Math.PI * 2);
     ctx.stroke();
     ctx.fill();
 
+    // draw inner circle
     ctx.beginPath();
     ctx.fillStyle = '#137CBD';
     ctx.lineWidth = 0;
-    ctx.arc(
-      lastPoint.x - this.strokeWidth / 2,
-      lastPoint.y - this.strokeWidth / 2,
-      2,
-      0,
-      Math.PI * 2
-    );
+    ctx.arc(0, 0, 2, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.restore();
   },
 
-  _drawControlPoints: function (ctx) {
-    ctx.save();
-    const points = this._getControlPoints();
-    forEach(points, (item) => {
+  _drawControlPoints: function (ctx, points) {
+    const controlPoints = this._getControlPoints(points);
+    const { scaleX, scaleY } = this.getObjectScaling();
+    forEach(controlPoints, (item) => {
+      ctx.save();
       ctx.beginPath();
       ctx.fillStyle = '#137CBD';
       ctx.strokeStyle = '#fff';
       ctx.lineWidth = 1;
-      ctx.arc(
-        item.x - this.strokeWidth / 2,
-        item.y - this.strokeWidth / 2,
-        5,
-        0,
-        Math.PI * 2
-      );
+      ctx.translate(item.x, item.y);
+      ctx.scale(1 / scaleX, 1 / scaleY);
+      ctx.arc(0, 0, 5, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      ctx.restore();
     });
-    ctx.restore();
   },
 
   /**
    * draw line
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
+   * @param {Array} points Points
    */
-  _drawLine: function (ctx) {
+  _drawLine: function (ctx, points) {
     ctx.beginPath();
-    ctx.moveTo(
-      this.points[0].x - this.strokeWidth / 2,
-      this.points[0].y - this.strokeWidth / 2
-    );
-    for (let i = 0; i < this.points.length; i++) {
-      let point = this.points[i];
-      ctx.lineTo(point.x - this.strokeWidth / 2, point.y - this.strokeWidth / 2);
+    ctx.moveTo(points[0].x, points[0].y);
+    for (let i = 0; i < points.length; i++) {
+      let point = points[i];
+      ctx.lineTo(point.x, point.y);
     }
   },
+
+  _getTransformPoints: memoizeOne(function (points) {
+    const invertedBossTransform = fabric.util.invertTransform(this.calcTransformMatrix());
+    return map(points, (item) => {
+      return fabric.util.transformPoint(item, invertedBossTransform);
+    });
+  }),
 
   /**
    * Initializes all the interactive behavior
@@ -697,7 +902,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
 
       // control point cursor
-      if (this.selfIsSelected()) {
+      if (!this.group && this.selfIsSelected()) {
         const hoveredControlPoint = this._controlPointsContainsPoint(point);
         if (hoveredControlPoint) {
           const matchedLinePoints = this._getControlPointCorrespondingLinePathPoints(
@@ -881,7 +1086,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     // dragging text box
     else if (
       this._isDragging &&
-      this._draggingObject.type === DRAGGING_OBJECT_TYPE.textBox &&
+      this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.textBox &&
       !this._isEditingText
     ) {
       const zoom = this.canvas.getZoom();
@@ -889,7 +1094,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         x: options.pointer.x / zoom,
         y: options.pointer.y / zoom,
       };
-      this._handleDragLinePathOrTextBox(point);
+      // this._handleDragLinePathOrTextBox(point);
     }
   },
 
@@ -927,18 +1132,24 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         x: options.pointer.x / zoom,
         y: options.pointer.y / zoom,
       };
-      if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.startPort) {
+      if (this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort) {
         this.fromPoint = point;
         this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
         this._updatePoints();
-      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.endPort) {
+      } else if (
+        this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort
+      ) {
         this.toPoint = point;
         this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
         this._updatePoints();
-      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.controlPoint) {
+      } else if (
+        this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint
+      ) {
         this._handleDragControlPoint(point);
-      } else if (this._draggingObject.type === DRAGGING_OBJECT_TYPE.line) {
-        this._handleDragLinePathOrTextBox(point);
+      } else if (
+        this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.line
+      ) {
+        // this._handleDragLinePathOrTextBox(point);
       }
     }
   },
@@ -990,7 +1201,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const result = [];
     const lineWidth = max([
       EASY_SELECTABLE_LINE_WIDTH,
-      this.strokeWidth * this.canvas.getZoom(),
+      this.lineWidth * this.canvas.getZoom(),
     ]);
     const zoom = this.canvas.getZoom();
     forEach(this.points, (currentOne, index) => {
@@ -1196,7 +1407,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     });
 
     return {
-      type: DRAGGING_OBJECT_TYPE.controlPoint,
+      type: CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint,
+      isDragControlPoint: true,
       controlPoint: draggingControlPoint,
       originalPoints: this.points,
       isHorizontal: isHorizontal,
@@ -1225,16 +1437,20 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       startDraggingPoint,
     };
     if (draggingTextBox) {
-      result.type = DRAGGING_OBJECT_TYPE.textBox;
+      result.isDragTextBox = true;
+      result.type = CONNECTION_LINE_DRAGGING_OBJECT_TYPE.textBox;
       result.originalPoints = this.points;
     } else if (isDragStartPort) {
-      result.type = DRAGGING_OBJECT_TYPE.startPort;
+      result.isDragStartPort = true;
+      result.type = CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort;
     } else if (isDragEndPort) {
-      result.type = DRAGGING_OBJECT_TYPE.endPort;
+      result.isDragEndPort = true;
+      result.type = CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort;
     } else if (draggingControlPoint) {
       result = this._setDraggingObjectWhenDragControlPoint(draggingControlPoint);
     } else if (draggingLine) {
-      result.type = DRAGGING_OBJECT_TYPE.line;
+      result.isDragLine = true;
+      result.type = CONNECTION_LINE_DRAGGING_OBJECT_TYPE.line;
       result.line = draggingLine;
       result.originalPoints = this.points;
     }
@@ -2413,13 +2629,26 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     return false;
   },
 
-  _renderText: function (ctx) {
+  _renderText: function (ctx, points) {
     if (!this.text) {
       return;
     }
+    const textPosition = this._getTextCoords(points);
+    const transform = this._getCurrentTransform();
+    const zoom = this.canvas.getZoom();
+    const degreesToRadians = fabric.util.degreesToRadians;
+    const radians = degreesToRadians(this._getActualAngle());
+    const scaleX = this.objectCaching
+      ? transform.scaleX
+      : transform.scaleX / Math.cos(radians);
+    const scaleY = this.objectCaching
+      ? transform.scaleY
+      : transform.scaleY / Math.cos(radians);
+
     ctx.save();
-    const textPosition = this._getTextCoords();
     ctx.translate(textPosition.x, textPosition.y);
+    ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
+
     if (this.paintFirst === 'stroke') {
       this._renderTextStroke(ctx);
       this._renderTextFill(ctx);
@@ -2430,15 +2659,28 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     ctx.restore();
   },
 
-  _renderTextBackground: function (ctx) {
+  _renderTextBackground: function (ctx, points) {
     if (!this.textStyle.backgroundColor || (!this.text && !this._isEditingText)) {
       return;
     }
 
     ctx.save();
     ctx.fillStyle = this.textStyle.backgroundColor;
-    const textPosition = this._getTextCoords();
+    const textPosition = this._getTextCoords(points);
+    const transform = this._getCurrentTransform();
+    const zoom = this.canvas.getZoom();
+    const degreesToRadians = fabric.util.degreesToRadians;
+    const radians = degreesToRadians(this._getActualAngle());
+    const scaleX = this.objectCaching
+      ? transform.scaleX
+      : transform.scaleX / Math.cos(radians);
+    const scaleY = this.objectCaching
+      ? transform.scaleY
+      : transform.scaleY / Math.cos(radians);
+
     ctx.translate(textPosition.x, textPosition.y);
+    ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
+
     ctx.fillRect(
       -this.textBoxWidth / 2,
       -this.textBoxHeight / 2,
@@ -2754,33 +2996,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @return {Number} Left offset
    */
   _getTextLeftOffset: function () {
-    return -this._getActualTextWidth(true) / 2;
-  },
-
-  /**
-   * Get text actual width
-   * @param {Boolean} ignoreZoom
-   */
-  _getActualTextWidth: function (ignoreZoom = false) {
-    if (ignoreZoom) {
-      return this.getObjectScaling().scaleX * this.textBoxWidth;
-    } else {
-      const zoom = this.canvas ? this.canvas.getZoom() : 1;
-      return this.getObjectScaling().scaleX * zoom * this.textBoxWidth;
-    }
-  },
-
-  /**
-   * Get text actual width
-   * @param {Boolean} ignoreZoom
-   */
-  _getActualTextHeight: function (ignoreZoom = false) {
-    if (ignoreZoom) {
-      return this.getObjectScaling().scaleX * this.textBoxHeight;
-    } else {
-      const zoom = this.canvas ? this.canvas.getZoom() : 1;
-      return this.getObjectScaling().scaleX * zoom * this.textBoxHeight;
-    }
+    return -this.textBoxWidth / 2;
   },
 
   /**
@@ -2789,13 +3005,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    */
   _getTextTopOffset: function () {
     if (this.verticalAlign === 'top') {
-      return -this._getActualTextHeight(true) / 2;
+      return -this.textBoxHeight(true) / 2;
     } else if (this.verticalAlign === 'middle') {
       return -this.calcTextHeight() / 2;
     } else if (this.verticalAlign === 'bottom') {
-      return -(this.calcTextHeight() - this._getActualTextHeight(true) / 2);
+      return -(this.calcTextHeight() - this.textBoxHeight / 2);
     }
-    return -this._getActualTextHeight(true) / 2;
+    return -this.textBoxHeight / 2;
   },
 
   /**
@@ -2932,16 +3148,17 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
   /**
    * Get text coords
+   * @param {Object} points
    * @return {{x: number, y: number}}
    * @private
    */
-  _getTextCoords: function () {
-    const connectionLength = this._getConnectionLength(this.points);
+  _getTextCoords: function (points = this.points) {
+    const connectionLength = this._getConnectionLength(points);
     let result = { x: 0, y: 0 };
     let currentTotalLength = 0;
-    forEach(this.points, (item, index) => {
+    forEach(points, (item, index) => {
       if (index >= 1) {
-        const lastPoint = this.points[index - 1];
+        const lastPoint = points[index - 1];
         const isHorizontal = item.y === lastPoint.y;
         if (isHorizontal) {
           currentTotalLength += Math.abs(item.x - lastPoint.x);
@@ -3939,10 +4156,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
     const ctx = this.canvas.contextTop;
     const v = this.canvas.viewportTransform;
-    const zoom = this.canvas.getZoom();
-    const textPosition = this._getTextCoords();
     ctx.save();
-    ctx.transform(v[0], v[1], v[2], v[3], textPosition.x * zoom, textPosition.y * zoom);
+    ctx.transform(v[0], v[1], v[2], v[3], v[4], v[5]);
     this.transform(ctx);
 
     this._clearTextArea(ctx);
@@ -3996,15 +4211,24 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       this.cursorColor || this.getValueOfPropertyAt(lineIndex, charIndex, 'fill');
     ctx.globalAlpha = this._isDragging ? 1 : this._currentCursorOpacity;
 
+    ctx.save();
+    const { scaleX, scaleY } = this.getObjectScaling();
+    ctx.scale(1 / scaleX, 1 / scaleY);
     ctx.fillRect(
       boundaries.left + boundaries.leftOffset - cursorWidth / 2,
       topOffset + boundaries.top + dy,
       cursorWidth,
       charHeight
     );
+
+    ctx.restore();
   },
 
   _renderTextBoxSelection: function (boundaries, ctx) {
+    ctx.save();
+    const { scaleX, scaleY } = this.getObjectScaling();
+    ctx.scale(1 / scaleX, 1 / scaleY);
+
     const selectionStart = this.inCompositionMode
         ? this.hiddenTextarea.selectionStart
         : this.selectionStart,
@@ -4065,6 +4289,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
       boundaries.topOffset += realLineHeight;
     }
+
+    ctx.restore();
   },
 
   /**
@@ -4337,10 +4563,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @return {Number} Index of a character
    */
   getSelectionStartFromPointer: function (e) {
-    const textBoxCoords = this._getTextCoords();
     const mouseOffset = {
-      x: this.getLocalPointer(e).x - (textBoxCoords.x - this.textBoxWidth / 2),
-      y: this.getLocalPointer(e).y - (textBoxCoords.y - this.textBoxHeight / 2),
+      x: this.getLocalPointer(e).x + this.textBoxWidth / 2,
+      y: this.getLocalPointer(e).y + this.textBoxHeight / 2,
     };
     const topOffset = this.textBoxHeight / 2 + this._getTopOffset();
     let prevWidth = 0;
@@ -4387,7 +4612,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
-   * Returns coordinates of a pointer relative to an object
+   * Returns coordinates of a pointer relative to an object center
    * @param {Event} e Event to operate upon
    * @param {Object} [pointer] Pointer to operate upon (instead of event)
    * @return {Object} Coordinates of a pointer (x, y)
@@ -4395,17 +4620,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   getLocalPointer: function (e, pointer) {
     pointer = pointer || this.canvas.getPointer(e);
     let pClicked = new fabric.Point(pointer.x, pointer.y);
-    const objectLeftTop = this._getLeftTopCoords();
+    const objectCenterPoint = this.getCenterPoint();
+
     if (this.angle) {
       pClicked = fabric.util.rotatePoint(
         pClicked,
-        objectLeftTop,
+        objectCenterPoint,
         fabric.util.degreesToRadians(-this.angle)
       );
     }
     return {
-      x: pClicked.x - objectLeftTop.x,
-      y: pClicked.y - objectLeftTop.y,
+      x: pClicked.x - objectCenterPoint.x,
+      y: pClicked.y - objectCenterPoint.y,
     };
   },
 
