@@ -506,31 +506,35 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
    * @param {String} extensionDirection Connection Line extension direction
-   * @param {Object} startPoint Ctx begin path start point
+   * @param {Object} point Ctx begin path point
    * initialize direction
    */
-  _drawArrow: function (ctx, extensionDirection, startPoint) {
+  _drawArrow: function (ctx, extensionDirection, point) {
+    ctx.save();
     ctx.fillStyle = ctx.strokeStyle;
     ctx.beginPath();
-    ctx.moveTo(startPoint.x, startPoint.y);
+    const { scaleX, scaleY } = this.getObjectScaling();
+    ctx.translate(point.x, point.y);
+    ctx.scale(1 / scaleX, 1 / scaleY);
+    ctx.moveTo(0, 0);
     switch (extensionDirection) {
       case DIRECTION.right:
-        ctx.lineTo(startPoint.x - this.arrowWidth, startPoint.y - this.arrowWidth / 2);
-        ctx.lineTo(startPoint.x - this.arrowWidth, startPoint.y + this.arrowWidth / 2);
+        ctx.lineTo(-this.arrowWidth, -this.arrowWidth / 2);
+        ctx.lineTo(-this.arrowWidth, this.arrowWidth / 2);
         break;
       case DIRECTION.left:
-        ctx.lineTo(startPoint.x + this.arrowWidth, startPoint.y - this.arrowWidth / 2);
-        ctx.lineTo(startPoint.x + this.arrowWidth, startPoint.y + this.arrowWidth / 2);
+        ctx.lineTo(this.arrowWidth, -this.arrowWidth / 2);
+        ctx.lineTo(this.arrowWidth, this.arrowWidth / 2);
         break;
 
       case DIRECTION.top:
-        ctx.lineTo(startPoint.x - this.arrowWidth / 2, startPoint.y + this.arrowWidth);
-        ctx.lineTo(startPoint.x + this.arrowWidth / 2, startPoint.y + this.arrowWidth);
+        ctx.lineTo(-this.arrowWidth / 2, this.arrowWidth);
+        ctx.lineTo(this.arrowWidth / 2, this.arrowWidth);
         break;
 
       case DIRECTION.bottom:
-        ctx.lineTo(startPoint.x - this.arrowWidth / 2, startPoint.y - this.arrowWidth);
-        ctx.lineTo(startPoint.x + this.arrowWidth / 2, startPoint.y - this.arrowWidth);
+        ctx.lineTo(-this.arrowWidth / 2, -this.arrowWidth);
+        ctx.lineTo(this.arrowWidth / 2, -this.arrowWidth);
         break;
       default:
         break;
@@ -538,6 +542,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     ctx.closePath();
     ctx.stroke();
     ctx.fill();
+    ctx.restore();
   },
 
   /**
