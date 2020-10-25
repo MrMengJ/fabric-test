@@ -354,13 +354,79 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const widthChange = this._prevWidth ? width - this._prevWidth : 0;
     const heightChange = this._prevHeight ? height - this._prevHeight : 0;
 
-    if (moveX || moveY || widthChange || heightChange) {
-      this.fromPoint.x = aCoords.tl.x;
-      this.fromPoint.y = aCoords.tl.y;
-      this.toPoint.x = aCoords.br.x;
-      this.toPoint.y = aCoords.br.y;
-      pointChanged = true;
+    const newPoints = [];
+    if (this._prevACoords) {
+      const { tl: prevTl, tr: prevTr, bl: prevBl, br: prevBr } = this._prevACoords;
+      const { tl, tr, br } = aCoords;
+      forEach(this.points, (item, index) => {
+        if (item.x === prevTl.x) {
+          newPoints[index] = {
+            x: tl.x,
+            y:
+              item.y +
+              moveY +
+              heightChange *
+                (Math.abs(item.y - prevTl.y) / Math.abs(prevBl.y - prevTl.y)),
+          };
+        }
+        if (item.y === prevTl.y) {
+          newPoints[index] = {
+            x:
+              item.x +
+              moveX +
+              widthChange * (Math.abs(item.x - prevTl.x) / Math.abs(prevTr.x - prevTl.x)),
+            y: tl.y,
+          };
+        }
+        if (item.x === prevTr.x) {
+          newPoints[index] = {
+            x: tr.x,
+            y:
+              item.y +
+              moveY +
+              heightChange *
+                (Math.abs(item.y - prevTr.y) / Math.abs(prevBr.y - prevTr.y)),
+          };
+        }
+        if (item.y === prevBl.y) {
+          newPoints[index] = {
+            x:
+              item.x +
+              moveX +
+              widthChange * (Math.abs(item.x - prevBl.x) / Math.abs(prevBr.x - prevBl.x)),
+            y: br.y,
+          };
+        }
+        if (
+          item.x > prevTl.x &&
+          item.x < prevBr.x &&
+          item.y > prevTl.y &&
+          item.y < prevBr.y
+        ) {
+          newPoints.push({
+            x:
+              item.x +
+              widthChange *
+                (Math.abs(item.x - prevTl.x) / Math.abs(prevTr.x - prevTl.x)) +
+              moveX,
+            y:
+              item.y +
+              moveY +
+              heightChange *
+                (Math.abs(item.y - prevTl.y) / Math.abs(prevBl.y - prevTl.y)),
+          });
+        }
+      });
+      this.points = newPoints;
     }
+
+    // if (moveX || moveY || widthChange || heightChange) {
+    //   this.fromPoint.x = aCoords.tl.x;
+    //   this.fromPoint.y = aCoords.tl.y;
+    //   this.toPoint.x = aCoords.br.x;
+    //   this.toPoint.y = aCoords.br.y;
+    //   pointChanged = true;
+    // }
 
     // const toWardRight = this.fromPoint.x <= this.toPoint.x;
     // const toWardBottom = this.fromPoint.y <= this.toPoint.y;
@@ -424,15 +490,16 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     //   pointChanged = true;
     // }
     //
-    if (pointChanged) {
-      this._updatePoints();
-    }
+    // if (pointChanged) {
+    //   this._updatePoints();
+    // }
 
     this._prevLeft = left;
     this._prevTop = top;
     this._prevWidth = width;
     this._prevHeight = height;
-  }),
+    this._prevACoords = aCoords;
+  }, isEqual),
 
   /**
    * Get actual left and top
@@ -628,11 +695,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const maxX = maxBy(points, (item) => item.x).x;
     const minY = minBy(points, (item) => item.y).y;
     const maxY = maxBy(points, (item) => item.y).y;
-    // TODO temp function, need alter ,think about lineWidth
-    // this.width = maxX + this.lineWidth / 2 - (minX - this.lineWidth / 2);
-    this.height = maxY + this.lineWidth / 2 - (minY - this.lineWidth / 2);
-    this.width = maxX - minX;
-    // this.height = maxY - minY;
+    const { scaleX, scaleY } = this.getObjectScaling();
+    this.width = (maxX - minX) / scaleX;
+    this.height = (maxY - minY) / scaleY;
   },
 
   /**
@@ -763,7 +828,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     return map(points, (item) => {
       return fabric.util.transformPoint(item, invertedBossTransform);
     });
-  }),
+  }, isEqual),
 
   /**
    * Initializes all the interactive behavior
