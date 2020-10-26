@@ -54,7 +54,6 @@ export const updateMiniMapVP = (canvas, miniMap) => {
   let canvasRatio = fabric.util.findScaleToFit(canvasSize, canvas);
   let totalRatio = fabric.util.findScaleToFit(canvasSize, miniMap);
   let finalRatio = canvasRatio / canvas.getZoom();
-  console.log('finalRatio', finalRatio);
   rect.scaleX = finalRatio;
   rect.scaleY = finalRatio;
   rect.top =
