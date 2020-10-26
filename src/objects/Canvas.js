@@ -905,9 +905,9 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @private
    */
   _checkConnectionLine: function (pointer, obj) {
-    return !(
+    return (
       get(obj, 'type') === ObjectType.ConnectionLine &&
-      !obj.isInConnectionLineRange(pointer)
+      obj.isInConnectionLineRange(pointer)
     );
   },
 
@@ -920,15 +920,22 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
    * @private
    */
   _checkTarget: function (pointer, obj, globalPointer) {
-    if (
-      obj &&
-      obj.visible &&
-      obj.evented &&
-      this._checkConnectionLine(pointer, obj) &&
-      // http://www.geog.ubc.ca/courses/klink/gis.notes/ncgia/u32.html
-      // http://idav.ucdavis.edu/~okreylos/TAship/Spring2000/PointInPolygon.html
-      (obj.containsPoint(pointer) || !!obj._findTargetCorner(pointer))
-    ) {
+    let canCheck;
+    const isConnectionLine = get(obj, 'type') === ObjectType.ConnectionLine;
+    if (isConnectionLine) {
+      canCheck =
+        obj && obj.visible && obj.evented && this._checkConnectionLine(pointer, obj);
+    } else {
+      canCheck =
+        obj &&
+        obj.visible &&
+        obj.evented &&
+        // http://www.geog.ubc.ca/courses/klink/gis.notes/ncgia/u32.html
+        // http://idav.ucdavis.edu/~okreylos/TAship/Spring2000/PointInPolygon.html
+        (obj.containsPoint(pointer) || !!obj._findTargetCorner(pointer));
+    }
+
+    if (canCheck) {
       if ((this.perPixelTargetFind || obj.perPixelTargetFind) && !obj.isEditing) {
         var isTransparent = this.isTargetTransparent(
           obj,

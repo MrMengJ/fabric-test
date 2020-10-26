@@ -745,11 +745,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       return;
     }
 
-    const isDragStartPort = this._startPortContainsPoint(pointer);
-    const isDragEndPort = this._endPortContainsPoint(pointer);
-    const draggingControlPoint = this._controlPointsContainsPoint(pointer);
-    const draggingLine = this._linesContainsPoint(pointer);
-    const draggingTextBox = this._textBoxContainsPoint(pointer);
+    const vpt = this.getViewportTransform();
+    const point = this.getPointInvertVpt(vpt, pointer);
+    const isDragStartPort = this._startPortContainsPoint(point);
+    const isDragEndPort = this._endPortContainsPoint(point);
+    const draggingControlPoint = this._controlPointsContainsPoint(point);
+    const draggingLine = this._linesContainsPoint(point);
+    const draggingTextBox = this._textBoxContainsPoint(point);
 
     if (this.isEditing) {
       if (!draggingTextBox) {
@@ -772,8 +774,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       isDragEndPort,
       draggingControlPoint,
       draggingLine,
-      draggingTextBox,
-      pointer
+      draggingTextBox
     );
     this.canvas._isDraggingConnectionLine = true;
   },
@@ -784,15 +785,21 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    */
   _setHoverCursor: function (point) {
     if (!this._isDragging && this.canvas) {
+      const vpt = this.getViewportTransform();
+      const transformedPoint = this.getPointInvertVpt(vpt, point);
+
       //  textBox cursor
-      if (this._textBoxContainsPoint(point)) {
+      if (this._textBoxContainsPoint(transformedPoint)) {
         const cursor = this.isEditing ? 'text' : 'move';
         this.canvas.setCursor(cursor);
         return;
       }
 
       // start port cursor , end port cursor
-      if (this._startPortContainsPoint(point) || this._endPortContainsPoint(point)) {
+      if (
+        this._startPortContainsPoint(transformedPoint) ||
+        this._endPortContainsPoint(transformedPoint)
+      ) {
         const cursor = 'move';
         this.canvas.setCursor(cursor);
         return;
@@ -800,7 +807,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
       // control point cursor
       if (!this.group && this.selfIsSelected()) {
-        const hoveredControlPoint = this._controlPointsContainsPoint(point);
+        const hoveredControlPoint = this._controlPointsContainsPoint(transformedPoint);
         if (hoveredControlPoint) {
           const matchedLinePoints = this._getControlPointCorrespondingLinePathPoints(
             hoveredControlPoint
@@ -815,7 +822,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       }
 
       // line cursor
-      const line = this._linesContainsPoint(point);
+      const line = this._linesContainsPoint(transformedPoint);
       if (line) {
         const cursor = 'move';
         this.canvas.setCursor(cursor);
@@ -938,30 +945,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.canvas.requestRenderAll();
   },
 
-  /**
-   * Handler when drag line path
-   * @param point point of mouse coordinates
-   */
-  _handleDragLinePathOrTextBox: function (point) {
-    const { startDraggingPoint, originalPoints } = this._draggingObject;
-    const distance = {
-      x: point.x - startDraggingPoint.x,
-      y: point.y - startDraggingPoint.y,
-    };
-    this.points = map(originalPoints, (item) => {
-      return {
-        x: item.x + distance.x,
-        y: item.y + distance.y,
-      };
-    });
-    this._needRecalculatePoints = false;
-    this.fromPoint = head(this.points);
-    this.toPoint = last(this.points);
-    this.canvas.requestRenderAll();
-  },
-
   _mouseMoveHandlerInTextBox: function (options) {
-    const isMouseInTextBox = this._textBoxContainsPoint(options.pointer);
+    const isMouseInTextBox = this._textBoxContainsPoint(
+      this.getPointInvertVpt(this.getViewportTransform(), options.pointer)
+    );
 
     // mouse move in text box
     if (this._isDragging && this.isEditing && isMouseInTextBox) {
@@ -989,19 +976,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this._renderTextBoxSelectionOrCursor();
       }
     }
-    // dragging text box
-    else if (
-      this._isDragging &&
-      this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.textBox &&
-      !this.isEditing
-    ) {
-      const zoom = this.canvas.getZoom();
-      const point = {
-        x: options.pointer.x / zoom,
-        y: options.pointer.y / zoom,
-      };
-      // this._handleDragLinePathOrTextBox(point);
-    }
   },
 
   restartCursorIfNeeded: function () {
@@ -1016,7 +990,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _canvasMouseMoveHandler: function (options) {
-    const { target } = options;
+    const { target, pointer } = options;
     if (!isEqual(target, this)) {
       return;
     }
@@ -1033,11 +1007,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         return;
       }
 
-      const zoom = this.canvas.getZoom();
-      const point = {
-        x: options.pointer.x / zoom,
-        y: options.pointer.y / zoom,
-      };
+      const point = this.getPointInvertVpt(this.getViewportTransform(), pointer);
+
       if (this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort) {
         this.fromPoint = point;
         this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
@@ -1058,10 +1029,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint
       ) {
         this._handleDragControlPoint(point);
-      } else if (
-        this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.line
-      ) {
-        // this._handleDragLinePathOrTextBox(point);
       }
     }
   },
@@ -1091,7 +1058,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       return;
     }
 
-    if (this._linesContainsPoint(pointer) || this._textBoxContainsPoint(pointer)) {
+    const vpt = this.getViewportTransform();
+    const point = this.getPointInvertVpt(vpt, pointer);
+    if (this._linesContainsPoint(point) || this._textBoxContainsPoint(point)) {
       if (!this.isEditing) {
         this.enterEditing(options.e);
       }
@@ -1113,7 +1082,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       EASY_SELECTABLE_LINE_WIDTH,
       this.lineWidth * this.canvas.getZoom(),
     ]);
-    const zoom = this.canvas.getZoom();
     forEach(this.points, (currentOne, index) => {
       if (index < this.points.length - 1) {
         const nextOne = this.points[index + 1];
@@ -1121,56 +1089,48 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         if (isHorizontal) {
           result.push({
             tl: {
-              x: currentOne.x * zoom,
-              y: currentOne.y * zoom - lineWidth / 2,
+              x: currentOne.x,
+              y: currentOne.y - lineWidth / 2,
             },
             tr: {
-              x: nextOne.x * zoom,
-              y: nextOne.y * zoom - lineWidth / 2,
+              x: nextOne.x,
+              y: nextOne.y - lineWidth / 2,
             },
             bl: {
-              x: currentOne.x * zoom,
-              y: currentOne.y * zoom + lineWidth / 2,
+              x: currentOne.x,
+              y: currentOne.y + lineWidth / 2,
             },
             br: {
-              x: nextOne.x * zoom,
-              y: nextOne.y * zoom + lineWidth / 2,
+              x: nextOne.x,
+              y: nextOne.y + lineWidth / 2,
             },
             isHorizontal: true,
             points: [currentOne, nextOne],
             isFirstLine: index === 0,
             isLastLine: index === this.points.length - 2,
-            // x: currentOne.x,
-            // y: currentOne.x - lineWidth / 2,
-            // width: nextOne.x - currentOne.x,
-            // height: lineWidth,
           });
         } else {
           result.push({
             tl: {
-              x: currentOne.x * zoom - lineWidth / 2,
-              y: currentOne.y * zoom,
+              x: currentOne.x - lineWidth / 2,
+              y: currentOne.y,
             },
             tr: {
-              x: currentOne.x * zoom + lineWidth / 2,
-              y: currentOne.y * zoom,
+              x: currentOne.x + lineWidth / 2,
+              y: currentOne.y,
             },
             bl: {
-              x: nextOne.x * zoom - lineWidth / 2,
-              y: nextOne.y * zoom,
+              x: nextOne.x - lineWidth / 2,
+              y: nextOne.y,
             },
             br: {
-              x: nextOne.x * zoom + lineWidth / 2,
-              y: nextOne.y * zoom,
+              x: nextOne.x + lineWidth / 2,
+              y: nextOne.y,
             },
             isHorizontal: false,
             points: [currentOne, nextOne],
             isFirstLine: index === 0,
             isLastLine: index === this.points.length - 2,
-            // x: currentOne.x - lineWidth / 2,
-            // y: currentOne.y,
-            // width: lineWidth,
-            // height: nextOne.y - currentOne.y,
           });
         }
       }
@@ -1198,12 +1158,14 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @return {Boolean} true if point is inside the connection line range
    */
   isInConnectionLineRange: function (point) {
-    const linesContainsPoint = this._linesContainsPoint(point);
-    const startPortContainsPoint = this._startPortContainsPoint(point);
-    const endPortContainsPoint = this._endPortContainsPoint(point);
-    const controlPoint = this._controlPointsContainsPoint(point);
-    const textBoxContainsPoint = this._textBoxContainsPoint(point);
-    return (
+    const vpt = this.getViewportTransform();
+    const transformedPoint = this.getPointInvertVpt(vpt, point);
+    const linesContainsPoint = this._linesContainsPoint(transformedPoint);
+    const startPortContainsPoint = this._startPortContainsPoint(transformedPoint);
+    const endPortContainsPoint = this._endPortContainsPoint(transformedPoint);
+    const controlPoint = this._controlPointsContainsPoint(transformedPoint);
+    const textBoxContainsPoint = this._textBoxContainsPoint(transformedPoint);
+    return !!(
       linesContainsPoint ||
       startPortContainsPoint ||
       endPortContainsPoint ||
@@ -1233,24 +1195,23 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @return {Object} corner coords
    */
   _getPortCornerCoords: function (port) {
-    const zoom = this.canvas.getZoom();
-    const extraScope = this.arrowWidth * 2 * zoom;
+    const extraScope = this.arrowWidth * 2;
     return {
       tl: {
-        x: port.x * zoom - extraScope / 2,
-        y: port.y * zoom - extraScope / 2,
+        x: port.x - extraScope / 2,
+        y: port.y - extraScope / 2,
       },
       tr: {
-        x: port.x * zoom + extraScope / 2,
-        y: port.y * zoom - extraScope / 2,
+        x: port.x + extraScope / 2,
+        y: port.y - extraScope / 2,
       },
       bl: {
-        x: port.x * zoom - extraScope / 2,
-        y: port.y * zoom + extraScope / 2,
+        x: port.x - extraScope / 2,
+        y: port.y + extraScope / 2,
       },
       br: {
-        x: port.x * zoom + extraScope / 2,
-        y: port.y * zoom + extraScope / 2,
+        x: port.x + extraScope / 2,
+        y: port.y + extraScope / 2,
       },
     };
   },
@@ -1335,17 +1296,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     isDragEndPort,
     draggingControlPoint,
     draggingLine,
-    draggingTextBox,
-    draggingPoint
+    draggingTextBox
   ) {
-    const zoom = this.canvas.getZoom();
-    const startDraggingPoint = {
-      x: draggingPoint.x / zoom,
-      y: draggingPoint.y / zoom,
-    };
-    let result = {
-      startDraggingPoint,
-    };
+    let result = {};
     if (draggingTextBox) {
       result.isDragTextBox = true;
       result.type = CONNECTION_LINE_DRAGGING_OBJECT_TYPE.textBox;
@@ -1375,8 +1328,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     isDragEndPort,
     draggingControlPoint,
     draggingLine,
-    draggingTextBox,
-    draggingPoint
+    draggingTextBox
   ) {
     this._isDragging = true;
     this._setDraggingObject(
@@ -1384,8 +1336,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       isDragEndPort,
       draggingControlPoint,
       draggingLine,
-      draggingTextBox,
-      draggingPoint
+      draggingTextBox
     );
   },
 
@@ -1651,25 +1602,24 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @return {Object} corner coords
    */
   _getTextBoxCornerCoords: function (port) {
-    const zoom = this.canvas.getZoom();
     const actualTextBoxWidth = this._getActualTextBoxWidth();
     const actualTextBoxHeight = this._getActualTextBoxHeight();
     return {
       tl: {
-        x: port.x * zoom - actualTextBoxWidth / 2,
-        y: port.y * zoom - actualTextBoxHeight / 2,
+        x: port.x - actualTextBoxWidth / 2,
+        y: port.y - actualTextBoxHeight / 2,
       },
       tr: {
-        x: port.x * zoom + actualTextBoxWidth / 2,
-        y: port.y * zoom - actualTextBoxHeight / 2,
+        x: port.x + actualTextBoxWidth / 2,
+        y: port.y - actualTextBoxHeight / 2,
       },
       bl: {
-        x: port.x * zoom - actualTextBoxWidth / 2,
-        y: port.y * zoom + actualTextBoxHeight / 2,
+        x: port.x - actualTextBoxWidth / 2,
+        y: port.y + actualTextBoxHeight / 2,
       },
       br: {
-        x: port.x * zoom + actualTextBoxWidth / 2,
-        y: port.y * zoom + actualTextBoxHeight / 2,
+        x: port.x + actualTextBoxWidth / 2,
+        y: port.y + actualTextBoxHeight / 2,
       },
     };
   },
@@ -1833,6 +1783,16 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this._prevWidth = width;
     this._prevHeight = height;
     this._prevACoords = aCoords;
+  }, isEqual),
+
+  /**
+   * Get point invert viewport
+   * @param {Array} vpt viewport
+   * @param {Object} point Point
+   * @return {fabric.Point}
+   */
+  getPointInvertVpt: memoizeOne(function (vpt, point) {
+    return fabric.util.transformPoint(point, fabric.util.invertTransform(vpt));
   }, isEqual),
 
   // For text
@@ -4119,13 +4079,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _getActualTextBoxWidth: function () {
-    const zoom = this.canvas ? this.canvas.getZoom() : 1;
-    return this.getObjectScaling().scaleX * zoom * this.textBoxWidth;
+    return this.getTotalObjectScaling().scaleX * this.textBoxWidth;
   },
 
   _getActualTextBoxHeight: function () {
-    const zoom = this.canvas ? this.canvas.getZoom() : 1;
-    return this.getObjectScaling().scaleY * zoom * this.textBoxHeight;
+    return this.getTotalObjectScaling().scaleY * this.textBoxHeight;
   },
 
   /**
