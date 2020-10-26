@@ -228,6 +228,12 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   _startDraggingPoint: null,
 
   /**
+   * Indicates whether can recalculate points by "width","height","left"，"right"
+   * @type Boolean
+   */
+  _needRecalculatePoints: true,
+
+  /**
    * Constructor
    * @param {Object} [options] Options object
    * @return {fabric.Polyline} thisArg
@@ -240,9 +246,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.initDimensions();
 
     this._initPoints();
-    this._initSize(this.points);
-    this._initPosition(this.points);
-    this._initDirection();
+    this._updateSize(this.points);
+    this._updatePosition(this.points);
+    this._updateDirection();
     this.initBehavior();
   },
 
@@ -322,185 +328,6 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this._renderTextBoxSelectionOrCursor();
   },
 
-  getNewPoints: memoizeOne(function (leftTop, width, height) {
-    // TODO temp function, need alter
-    let finalMatrix;
-    if (this.group) {
-      finalMatrix = this.calcTransformMatrix();
-    } else {
-      const translateMatrix = this._calcTranslateMatrix();
-      const rotateMatrix = this._calcRotateMatrix();
-      finalMatrix = fabric.util.multiplyTransformMatrices(translateMatrix, rotateMatrix);
-    }
-    const dim = this.group
-      ? this._getNonTransformedDimensions()
-      : this._getTransformedDimensions();
-    const w = dim.x / 2;
-    const h = dim.y / 2;
-    const transformPoint = fabric.util.transformPoint;
-
-    const aCoords = {
-      // corners
-      tl: transformPoint({ x: -w, y: -h }, finalMatrix),
-      tr: transformPoint({ x: w, y: -h }, finalMatrix),
-      bl: transformPoint({ x: -w, y: h }, finalMatrix),
-      br: transformPoint({ x: w, y: h }, finalMatrix),
-    };
-
-    const { x: left, y: top } = leftTop;
-    let pointChanged = false;
-    const moveX = this._prevLeft ? left - this._prevLeft : 0;
-    const moveY = this._prevTop ? top - this._prevTop : 0;
-    const widthChange = this._prevWidth ? width - this._prevWidth : 0;
-    const heightChange = this._prevHeight ? height - this._prevHeight : 0;
-
-    const newPoints = [];
-    if (this._prevACoords) {
-      const { tl: prevTl, tr: prevTr, bl: prevBl, br: prevBr } = this._prevACoords;
-      const { tl, tr, br } = aCoords;
-      forEach(this.points, (item, index) => {
-        if (item.x === prevTl.x) {
-          newPoints[index] = {
-            x: tl.x,
-            y:
-              item.y +
-              moveY +
-              heightChange *
-                (Math.abs(item.y - prevTl.y) / Math.abs(prevBl.y - prevTl.y)),
-          };
-        }
-        if (item.y === prevTl.y) {
-          newPoints[index] = {
-            x:
-              item.x +
-              moveX +
-              widthChange * (Math.abs(item.x - prevTl.x) / Math.abs(prevTr.x - prevTl.x)),
-            y: tl.y,
-          };
-        }
-        if (item.x === prevTr.x) {
-          newPoints[index] = {
-            x: tr.x,
-            y:
-              item.y +
-              moveY +
-              heightChange *
-                (Math.abs(item.y - prevTr.y) / Math.abs(prevBr.y - prevTr.y)),
-          };
-        }
-        if (item.y === prevBl.y) {
-          newPoints[index] = {
-            x:
-              item.x +
-              moveX +
-              widthChange * (Math.abs(item.x - prevBl.x) / Math.abs(prevBr.x - prevBl.x)),
-            y: br.y,
-          };
-        }
-        if (
-          item.x > prevTl.x &&
-          item.x < prevBr.x &&
-          item.y > prevTl.y &&
-          item.y < prevBr.y
-        ) {
-          newPoints.push({
-            x:
-              item.x +
-              widthChange *
-                (Math.abs(item.x - prevTl.x) / Math.abs(prevTr.x - prevTl.x)) +
-              moveX,
-            y:
-              item.y +
-              moveY +
-              heightChange *
-                (Math.abs(item.y - prevTl.y) / Math.abs(prevBl.y - prevTl.y)),
-          });
-        }
-      });
-      this.points = newPoints;
-    }
-
-    // if (moveX || moveY || widthChange || heightChange) {
-    //   this.fromPoint.x = aCoords.tl.x;
-    //   this.fromPoint.y = aCoords.tl.y;
-    //   this.toPoint.x = aCoords.br.x;
-    //   this.toPoint.y = aCoords.br.y;
-    //   pointChanged = true;
-    // }
-
-    // const toWardRight = this.fromPoint.x <= this.toPoint.x;
-    // const toWardBottom = this.fromPoint.y <= this.toPoint.y;
-    //
-    // const resizeX = widthChange !== 0;
-    // const resizeY = heightChange !== 0;
-    // const resizeLeft = resizeX && moveX < 0;
-    // const resizeRight = resizeX && moveX >= 0;
-    // const resizeTop = resizeY && moveY < 0;
-    // const resizeBottom = resizeY && moveY >= 0;
-    //
-    // if (resizeLeft) {
-    //   if (toWardRight) {
-    //     this.fromPoint.x += moveX;
-    //     pointChanged = true;
-    //   } else {
-    //     this.toPoint.x += moveX;
-    //     pointChanged = true;
-    //   }
-    // }
-    //
-    // if (resizeRight) {
-    //   if (toWardRight) {
-    //     this.toPoint.x += widthChange;
-    //     pointChanged = true;
-    //   } else {
-    //     this.fromPoint.x += widthChange;
-    //     pointChanged = true;
-    //   }
-    // }
-    //
-    // if (resizeTop) {
-    //   if (toWardBottom) {
-    //     this.fromPoint.y += moveY;
-    //     pointChanged = true;
-    //   } else {
-    //     this.toPoint.y += moveY;
-    //     pointChanged = true;
-    //   }
-    // }
-    //
-    // if (resizeBottom) {
-    //   if (toWardBottom) {
-    //     this.toPoint.y += heightChange;
-    //     pointChanged = true;
-    //   } else {
-    //     this.fromPoint.y += heightChange;
-    //     pointChanged = true;
-    //   }
-    // }
-    //
-    // if (!resizeX && !resizeY && (moveX || moveY)) {
-    //   this.fromPoint = {
-    //     x: this.fromPoint.x + moveX,
-    //     y: this.fromPoint.y + moveY,
-    //   };
-    //   this.toPoint = {
-    //     x: this.toPoint.x + moveX,
-    //     y: this.toPoint.y + moveY,
-    //   };
-    //   pointChanged = true;
-    // }
-    //
-    // if (pointChanged) {
-    //   this._updatePoints();
-    // }
-
-    this._prevLeft = left;
-    this._prevTop = top;
-    this._prevWidth = width;
-    this._prevHeight = height;
-    this._prevACoords = aCoords;
-  }, isEqual),
-
   /**
    * Get actual left and top
    * @private
@@ -531,7 +358,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const leftTop = this._getLeftTop();
     const actualWidth = this._getActualWidth(true);
     const actualHeight = this._getActualHeight(true);
-    this.getNewPoints(leftTop, actualWidth, actualHeight);
+    this.setNewPoints(leftTop, actualWidth, actualHeight, this._needRecalculatePoints);
     const transformPoints = this._getTransformPoints(this.points);
 
     this._renderLine(ctx, transformPoints);
@@ -613,11 +440,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
-   * initialize from direction
+   * update from direction
    * @private
    * @return {String} from direction
    */
-  _initFromDirection: function () {
+  _updateFromDirection: function () {
     let fromDirection = this.fromDirection;
     const firstPoint = head(this.points);
     const secondPoint = this.points[1];
@@ -640,11 +467,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
-   * initialize to direction
+   * update to direction
    * @private
    * @return {String} to direction
    */
-  _initToDirection: function () {
+  _updateToDirection: function () {
     let toDirection = this.toDirection;
     const lastPoint = last(this.points);
     const secondLastPoint = this.points[this.points.length - 2];
@@ -683,11 +510,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
-   * initialize size
+   * update size by points
    * @param {Array} points
    * @private
    */
-  _initSize: function (points) {
+  _updateSize: function (points) {
     if (isEmpty(points)) {
       return;
     }
@@ -701,11 +528,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   /**
-   * initialize position
+   * update position by points
    * @param {Array} points
    * @private
    */
-  _initPosition: function (points) {
+  _updatePosition: function (points) {
     if (isEmpty(points)) {
       return;
     }
@@ -719,12 +546,12 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * initialize direction
    * @private
    */
-  _initDirection: function () {
+  _updateDirection: function () {
     if (this.points.length <= 1) {
       return;
     }
-    this._initFromDirection();
-    this._initToDirection();
+    this._updateFromDirection();
+    this._updateToDirection();
   },
 
   /**
@@ -1013,6 +840,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       ];
       newPoints.splice(1, 0, addedPoints[0], addedPoints[1]);
       this.points = newPoints;
+      this._needRecalculatePoints = false;
     } else {
       newPoints[1].x = point.x;
       const addedPoints = [
@@ -1027,6 +855,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       ];
       newPoints.splice(1, 0, addedPoints[0], addedPoints[1]);
       this.points = newPoints;
+      this._needRecalculatePoints = false;
     }
   },
 
@@ -1047,6 +876,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       ];
       newPoints.splice(-1, 0, addedPoints[0], addedPoints[1]);
       this.points = newPoints;
+      this._needRecalculatePoints = false;
     } else {
       newPoints[originalPoints.length - 2].x = point.x;
       const addedPoints = [
@@ -1061,6 +891,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       ];
       newPoints.splice(-1, 0, addedPoints[0], addedPoints[1]);
       this.points = newPoints;
+      this._needRecalculatePoints = false;
     }
   },
 
@@ -1092,14 +923,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
           const matched = includes(correspondingLinePathPoints, item);
           return matched ? { x: item.x, y: point.y } : item;
         });
+        this._needRecalculatePoints = false;
       } else {
         this.points = map(originalPoints, (item) => {
           const matched = includes(correspondingLinePathPoints, item);
           return matched ? { x: point.x, y: item.y } : item;
         });
+        this._needRecalculatePoints = false;
       }
     }
-    this._initDirection();
+    this._updateDirection();
+    this._updateSize(this.points);
+    this._updatePosition(this.points);
     this.canvas.requestRenderAll();
   },
 
@@ -1119,6 +954,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         y: item.y + distance.y,
       };
     });
+    this._needRecalculatePoints = false;
     this.fromPoint = head(this.points);
     this.toPoint = last(this.points);
     this.canvas.requestRenderAll();
@@ -1206,12 +1042,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this.fromPoint = point;
         this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
         this._updatePoints();
+        this._needRecalculatePoints = false;
+        this._updateSize(this.points);
+        this._updatePosition(this.points);
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort
       ) {
         this.toPoint = point;
         this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
         this._updatePoints();
+        this._needRecalculatePoints = false;
+        this._updateSize(this.points);
+        this._updatePosition(this.points);
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint
       ) {
@@ -1860,6 +1702,138 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     }
     return false;
   },
+
+  updateFormPointByPoints: function (points = this.points) {
+    this.fromPoint = head(points);
+  },
+
+  updateToPointByPoints: function (points = this.points) {
+    this.toPoint = last(points);
+  },
+
+  getACoords: function () {
+    let finalMatrix;
+    if (this.group) {
+      finalMatrix = this.calcTransformMatrix();
+    } else {
+      const translateMatrix = this._calcTranslateMatrix();
+      const rotateMatrix = this._calcRotateMatrix();
+      finalMatrix = fabric.util.multiplyTransformMatrices(translateMatrix, rotateMatrix);
+    }
+    const dim = this.group
+      ? this._getNonTransformedDimensions()
+      : this._getTransformedDimensions();
+    const w = dim.x / 2;
+    const h = dim.y / 2;
+    const transformPoint = fabric.util.transformPoint;
+
+    return {
+      tl: transformPoint({ x: -w, y: -h }, finalMatrix),
+      tr: transformPoint({ x: w, y: -h }, finalMatrix),
+      bl: transformPoint({ x: -w, y: h }, finalMatrix),
+      br: transformPoint({ x: w, y: h }, finalMatrix),
+    };
+  },
+
+  setNewPoints: memoizeOne(function (leftTop, width, height, _needRecalculatePoints) {
+    const { x: left, y: top } = leftTop;
+    const aCoords = this.getACoords();
+    if (!_needRecalculatePoints) {
+      this._needRecalculatePoints = true;
+      this._prevLeft = left;
+      this._prevTop = top;
+      this._prevWidth = width;
+      this._prevHeight = height;
+      this._prevACoords = aCoords;
+      return;
+    }
+
+    const moveX = this._prevLeft ? left - this._prevLeft : 0;
+    const moveY = this._prevTop ? top - this._prevTop : 0;
+    const widthChange = this._prevWidth ? width - this._prevWidth : 0;
+    const heightChange = this._prevHeight ? height - this._prevHeight : 0;
+    const newPoints = cloneDeep(this.points);
+    if (this._prevACoords) {
+      const { tl: prevTl, tr: prevTr, bl: prevBl, br: prevBr } = this._prevACoords;
+      const { tl, tr, br } = aCoords;
+      forEach(this.points, (item, index) => {
+        // left boundary
+        if (item.x === prevTl.x) {
+          newPoints[index] = {
+            x: tl.x,
+            y:
+              item.y +
+              moveY +
+              heightChange *
+                (Math.abs(item.y - prevTl.y) / Math.abs(prevBl.y - prevTl.y)),
+          };
+        }
+
+        // upper boundary
+        if (item.y === prevTl.y) {
+          newPoints[index] = {
+            x:
+              item.x +
+              moveX +
+              widthChange * (Math.abs(item.x - prevTl.x) / Math.abs(prevTr.x - prevTl.x)),
+            y: tl.y,
+          };
+        }
+
+        // right boundary
+        if (item.x === prevTr.x) {
+          newPoints[index] = {
+            x: tr.x,
+            y:
+              item.y +
+              moveY +
+              heightChange *
+                (Math.abs(item.y - prevTr.y) / Math.abs(prevBr.y - prevTr.y)),
+          };
+        }
+
+        //lower boundary
+        if (item.y === prevBl.y) {
+          newPoints[index] = {
+            x:
+              item.x +
+              moveX +
+              widthChange * (Math.abs(item.x - prevBl.x) / Math.abs(prevBr.x - prevBl.x)),
+            y: br.y,
+          };
+        }
+
+        // within boundary
+        if (
+          item.x > prevTl.x &&
+          item.x < prevBr.x &&
+          item.y > prevTl.y &&
+          item.y < prevBr.y
+        ) {
+          newPoints[index] = {
+            x:
+              item.x +
+              widthChange *
+                (Math.abs(item.x - prevTl.x) / Math.abs(prevTr.x - prevTl.x)) +
+              moveX,
+            y:
+              item.y +
+              moveY +
+              heightChange *
+                (Math.abs(item.y - prevTl.y) / Math.abs(prevBl.y - prevTl.y)),
+          };
+        }
+      });
+      this.points = newPoints;
+      this.updateFormPointByPoints(newPoints);
+      this.updateToPointByPoints(newPoints);
+    }
+    this._prevLeft = left;
+    this._prevTop = top;
+    this._prevWidth = width;
+    this._prevHeight = height;
+    this._prevACoords = aCoords;
+  }, isEqual),
 
   // For text
 
