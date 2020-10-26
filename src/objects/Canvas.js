@@ -1,5 +1,5 @@
 import { fabric } from 'fabric';
-import { forEach, get, includes } from 'lodash';
+import { forEach, has, get, includes } from 'lodash';
 
 import Group from './Group';
 import ActiveSelection from './ActiveSelection';
@@ -1914,8 +1914,17 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
       );
       var control = target.controls[corner],
         mouseUpHandler = control && control.getMouseUpHandler(e, target, control);
+      const iconCorner =
+          !has(target,'_objects') && target.cursor && target._findIcon(this.getPointer(e, true));
+
       if (mouseUpHandler) {
         mouseUpHandler(e, target, control);
+      }
+      if(iconCorner){
+        let handler = target._getIconHandler(iconCorner);
+        if(handler) {
+          handler(e, target);
+        }
       }
       target.isMoving = false;
     }
@@ -2166,7 +2175,9 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
 
     if (target) {
       var alreadySelected = target === this._activeObject;
-      if (target.selectable) {
+      const iconCorner =
+          !has(target,'_objects') && target.cursor && target._findIcon(this.getPointer(e, true));
+      if (target.selectable && !iconCorner) {
         this.setActiveObject(target, e);
       }
       var corner = target._findTargetCorner(
@@ -2451,12 +2462,15 @@ const Canvas = fabric.util.createClass(fabric.StaticCanvas, {
 
     const anchorCorner =
       this.connectionMode && target._findAnchor(this.getPointer(e, true));
-
+    const iconCorner =
+        !has(target,'_objects') && target.cursor && target._findIcon(this.getPointer(e, true));
     if (corner) {
       this.setCursor(this.getCornerCursor(corner, target, e));
     } else if (anchorCorner) {
       this.setCursor(this.getAnchorCursor(anchorCorner, target, e));
-    } else {
+    } else if(iconCorner) {
+      this.setCursor(target.cursor);
+    }else {
       if (target.subTargetCheck) {
         // hoverCursor should come from top-most subTarget,
         // so we walk the array backwards
