@@ -4220,6 +4220,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     ctx.globalAlpha = this._isDragging ? 1 : this._currentCursorOpacity;
 
     ctx.save();
+    const transformPoints = this._getTransformPoints(this.points);
+    const textPosition = this._getTextCoords(transformPoints);
+    ctx.translate(textPosition.x, textPosition.y);
+
     const { scaleX, scaleY } = this.getObjectScaling();
     ctx.scale(1 / scaleX, 1 / scaleY);
     ctx.fillRect(
@@ -4234,6 +4238,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
   _renderTextBoxSelection: function (boundaries, ctx) {
     ctx.save();
+    const transformPoints = this._getTransformPoints(this.points);
+    const textPosition = this._getTextCoords(transformPoints);
+    ctx.translate(textPosition.x, textPosition.y);
+
     const { scaleX, scaleY } = this.getObjectScaling();
     ctx.scale(1 / scaleX, 1 / scaleY);
 
@@ -4630,18 +4638,19 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   getLocalPointer: function (e, pointer) {
     pointer = pointer || this.canvas.getPointer(e);
     let pClicked = new fabric.Point(pointer.x, pointer.y);
-    const objectCenterPoint = this.getCenterPoint();
+    const textCoords = this._getTextCoords();
+    const textBoxCenterPoint = new fabric.Point(textCoords.x, textCoords.y);
 
     if (this.angle) {
       pClicked = fabric.util.rotatePoint(
         pClicked,
-        objectCenterPoint,
+        textBoxCenterPoint,
         fabric.util.degreesToRadians(-this.angle)
       );
     }
     return {
-      x: pClicked.x - objectCenterPoint.x,
-      y: pClicked.y - objectCenterPoint.y,
+      x: pClicked.x - textBoxCenterPoint.x,
+      y: pClicked.y - textBoxCenterPoint.y,
     };
   },
 
