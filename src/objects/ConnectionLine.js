@@ -358,13 +358,17 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     const leftTop = this._getLeftTop();
     const actualWidth = this._getActualWidth(true);
     const actualHeight = this._getActualHeight(true);
+    // set new points if necessary
     this.setNewPoints(leftTop, actualWidth, actualHeight, this._needRecalculatePoints);
-    const transformPoints = this._getTransformPoints(this.points);
+    // reset _needRecalculatePoints to true
+    this._needRecalculatePoints = true;
 
+    const transformPoints = this._getTransformPoints(this.points);
+    // render line
     this._renderLine(ctx, transformPoints);
     this._renderArrow(ctx, transformPoints);
     this._renderControl(ctx, transformPoints);
-
+    // render text
     this._renderTextBackground(ctx, transformPoints);
     this._renderText(ctx, transformPoints);
   },
@@ -1706,9 +1710,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     if (this._prevACoords) {
       const { tl: prevTl, tr: prevTr, bl: prevBl, br: prevBr } = this._prevACoords;
       const { tl, tr, br } = aCoords;
+      const MISTAKE_LIMIT = 0.5;
       forEach(this.points, (item, index) => {
         // left boundary
-        if (item.x === prevTl.x) {
+        if (Math.abs(item.x - prevTl.x) <= MISTAKE_LIMIT) {
           newPoints[index] = {
             x: tl.x,
             y:
@@ -1720,7 +1725,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         }
 
         // upper boundary
-        if (item.y === prevTl.y) {
+        if (Math.abs(item.y - prevTl.y) <= MISTAKE_LIMIT) {
           newPoints[index] = {
             x:
               item.x +
@@ -1731,7 +1736,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         }
 
         // right boundary
-        if (item.x === prevTr.x) {
+        if (Math.abs(item.x - prevTr.x) <= MISTAKE_LIMIT) {
           newPoints[index] = {
             x: tr.x,
             y:
@@ -1743,7 +1748,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         }
 
         //lower boundary
-        if (item.y === prevBl.y) {
+        if (Math.abs(item.y - prevBl.y) <= MISTAKE_LIMIT) {
           newPoints[index] = {
             x:
               item.x +
@@ -1755,10 +1760,10 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
 
         // within boundary
         if (
-          item.x > prevTl.x &&
-          item.x < prevBr.x &&
-          item.y > prevTl.y &&
-          item.y < prevBr.y
+          item.x > prevTl.x + MISTAKE_LIMIT &&
+          item.x < prevBr.x - MISTAKE_LIMIT &&
+          item.y > prevTl.y + MISTAKE_LIMIT &&
+          item.y < prevBr.y - MISTAKE_LIMIT
         ) {
           newPoints[index] = {
             x:
