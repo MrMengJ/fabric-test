@@ -64,7 +64,7 @@ class Handler {
       const clonedObj = cloneDeep(clipboard);
       this.canvas.discardActiveObject();
       if (e) {
-        const point = this.canvas.getPointer(e, true);
+        const point = this.canvas.getPointer(e, false);
         clonedObj.set({
           left: point.x,
           top: point.y,
