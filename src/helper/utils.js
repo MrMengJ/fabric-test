@@ -5,7 +5,7 @@ export const GuidelineOption = {
    * When have moved object, whether should show guideline
    * @type {boolean}
    */
-  enabled: true,
+  enabled: false,
 };
 
 export const GridOption = {
