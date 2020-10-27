@@ -1609,24 +1609,22 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @return {Object} corner coords
    */
   _getTextBoxCornerCoords: function (port) {
-    const actualTextBoxWidth = this._getActualTextBoxWidth();
-    const actualTextBoxHeight = this._getActualTextBoxHeight();
     return {
       tl: {
-        x: port.x - actualTextBoxWidth / 2,
-        y: port.y - actualTextBoxHeight / 2,
+        x: port.x - this.textBoxWidth / 2,
+        y: port.y - this.textBoxHeight / 2,
       },
       tr: {
-        x: port.x + actualTextBoxWidth / 2,
-        y: port.y - actualTextBoxHeight / 2,
+        x: port.x + this.textBoxWidth / 2,
+        y: port.y - this.textBoxHeight / 2,
       },
       bl: {
-        x: port.x - actualTextBoxWidth / 2,
-        y: port.y + actualTextBoxHeight / 2,
+        x: port.x - this.textBoxWidth / 2,
+        y: port.y + this.textBoxHeight / 2,
       },
       br: {
-        x: port.x + actualTextBoxWidth / 2,
-        y: port.y + actualTextBoxHeight / 2,
+        x: port.x + this.textBoxWidth / 2,
+        y: port.y + this.textBoxHeight / 2,
       },
     };
   },
@@ -4087,11 +4085,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   },
 
   _getActualTextBoxWidth: function () {
-    return this.getTotalObjectScaling().scaleX * this.textBoxWidth;
+    const zoom = this.canvas.getZoom();
+    return zoom * this.textBoxWidth;
   },
 
   _getActualTextBoxHeight: function () {
-    return this.getTotalObjectScaling().scaleY * this.textBoxHeight;
+    const zoom = this.canvas.getZoom();
+    return zoom * this.textBoxHeight;
   },
 
   /**
