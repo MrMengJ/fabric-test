@@ -3167,10 +3167,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     forEach(points, (item, index) => {
       if (index >= 1) {
         const lastPoint = points[index - 1];
-        const isHorizontal = item.y === lastPoint.y;
+        const isHorizontal = Math.abs(item.y - lastPoint.y) < 0.1;
+        const isVertical = Math.abs(item.x - lastPoint.x) < 0.1;
         if (isHorizontal) {
           currentTotalLength += Math.abs(item.x - lastPoint.x);
-        } else {
+        } else if (isVertical) {
           currentTotalLength += Math.abs(item.y - lastPoint.y);
         }
         if (currentTotalLength >= connectionLength * this.textPosition) {
@@ -3180,7 +3181,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
             result = isTowardRight
               ? { x: item.x - distance, y: item.y }
               : { x: item.x + distance, y: item.y };
-          } else {
+          } else if (isVertical) {
             const isDownward = item.y > lastPoint.y;
             result = isDownward
               ? { x: item.x, y: item.y - distance }
