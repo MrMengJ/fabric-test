@@ -746,6 +746,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   _canvasMouseDownHandler: function (options) {
     const { pointer, target } = options;
     if (!isEqual(target, this)) {
+      if (this.isEditing) {
+        this.exitEditing();
+      }
       return;
     }
 
