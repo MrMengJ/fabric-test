@@ -7,13 +7,15 @@ const StyledMenu = styled(Menu)`
   min-width: 136px;
 `;
 
-export function canvasContextMenu(event) {
-  const { e, target, pointer } = event;
-  console.log('event', event);
-  console.log('target', target);
+export function canvasContextMenu(event, activeObj,onClick, hasClipboard) {
+  const { pointer } = event;
   const menu = (
     <StyledMenu>
-      <CommonMenuItem />
+      <CommonMenuItem
+          activeObj={activeObj}
+          onClick={onClick}
+          clipboard={hasClipboard}
+      />
     </StyledMenu>
   );
   ContextMenu.hide();

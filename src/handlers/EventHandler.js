@@ -2,12 +2,11 @@ import { fabric } from 'fabric';
 import { canvasContextMenu } from '../CanvasContextMenu';
 import { updateMiniMap, updateMiniMapVP } from '../helper/utils';
 import { KEY_CODES, TRANSACTION_TYPE } from '../constants/event';
+import { MENU_ITEM_NAME } from '../CanvasContextMenu/constants';
 
 class EventHandler {
-  constructor(Handler) {
-    this.handler = Handler;
-    this.lastPosX = null;
-    this.lastPosY = null;
+  constructor(handler) {
+    this.handler = handler;
     this.initialize();
   }
 
@@ -30,7 +29,6 @@ class EventHandler {
       'object:moving': this.miniMapMoving,
       'object:scaling': this.miniMapScaling,
     });
-    this.handler.canvas.on({ 'mouse:down': this.contextMenu });
     //this.handler.canvas.wrapperEl.tabIndex = 1000;
     document.addEventListener('keydown', this.keydown, false);
     document.addEventListener('keyup', this.keyup, false);
@@ -157,6 +155,32 @@ class EventHandler {
     if (this.handler.interactionMode === 'grab') {
       this.panning = true;
     }
+    const { button } = opt;
+    const contextMenuClick = (type) => {
+      switch (type) {
+        case MENU_ITEM_NAME.COPY_SHAPES:
+          this.handler.copy();
+          break;
+        case MENU_ITEM_NAME.CUT_SHAPES:
+          this.handler.cut();
+          break;
+        case MENU_ITEM_NAME.PASTE_CLIPBOARD:
+          this.handler.paste(opt.e);
+          this.handler.canvas.requestRenderAll();
+          break;
+        case MENU_ITEM_NAME.DELETE_SHAPES:
+          this.handler.remove();
+          break;
+        default:
+          break;
+      }
+    };
+
+    if (button === 3) {
+      const activeObj = this.handler.canvas.getActiveObjects();
+      const hasClipboard = this.handler.clipboard !== null;
+      canvasContextMenu(opt, activeObj, contextMenuClick, hasClipboard);
+    }
   };
   mouseup = (e) => {
     if (this.handler.interactionMode === 'grab') {
@@ -200,13 +224,6 @@ class EventHandler {
     updateMiniMapVP(this.handler.canvas, this.handler.miniMap);
     event.e.preventDefault();
     event.e.stopPropagation();
-  };
-
-  contextMenu = (opt) => {
-    const { button } = opt;
-    if (button === 3) {
-      canvasContextMenu(opt);
-    }
   };
 }
 

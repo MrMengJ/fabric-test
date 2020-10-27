@@ -64,14 +64,19 @@ class Handler {
       const clonedObj = cloneDeep(clipboard);
       this.canvas.discardActiveObject();
       if (e) {
-        //todo handle contentMenu paste
-        //TODO paste to pointer position
+        const point = this.canvas.getPointer(e, true);
+        clonedObj.set({
+          left: point.x,
+          top: point.y,
+          evented: true
+        });
+      }else{
+        clonedObj.set({
+          left: clonedObj.left + padding,
+          top: clonedObj.top + padding,
+          evented: true
+        });
       }
-      clonedObj.set({
-        left: clonedObj.left + padding,
-        top: clonedObj.top + padding,
-        evented: true,
-      });
       if (has(clonedObj, '_objects')) {
         clonedObj.canvas = this.canvas;
         clonedObj.forEachObject((obj) => {
@@ -80,11 +85,10 @@ class Handler {
       } else {
         this.canvas.add(clonedObj);
       }
-      const newClipboard = clipboard.set({
+      clipboard.set({
         top: clonedObj.top,
         left: clonedObj.left,
       });
-      this.clipboard = this.isCut ? null : newClipboard;
       clonedObj.setCoords(); // before the resize Grid
       if (this.gridOption.enabled) {
         this.gridHandler.resizeGrid(clonedObj);
