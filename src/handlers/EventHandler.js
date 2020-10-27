@@ -35,12 +35,12 @@ class EventHandler {
   }
 
   moving = (opt) => {
-    //const { target } = opt;
+    const { target } = opt;
     if (this.handler.interactionMode === 'crop') {
       //this.handler.cropHandler.moving(opt);
     } else {
       if (this.handler.editable && this.handler.guidelineOption.enabled) {
-        //this.handler.alignmentLineHandler.movingGuidelines(target);
+        this.handler.alignmentLineHandler.movingGuidelines(target);
       }
     }
   };
