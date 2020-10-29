@@ -397,16 +397,10 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
    * Get current transform
    */
   getCurrentTransform: function () {
-    const zoom = this.canvas.getZoom();
+    const vpt = this.getViewportTransform();
     const transformMatrix = this.calcTransformMatrix();
-    return {
-      scaleX: transformMatrix[0] * zoom,
-      skewX: transformMatrix[1] * zoom,
-      skewY: transformMatrix[2] * zoom,
-      scaleY: transformMatrix[3] * zoom,
-      translateX: transformMatrix[4] * zoom,
-      translateY: transformMatrix[5] * zoom,
-    };
+    const { qrDecompose, multiplyTransformMatrices } = fabric.util;
+    return qrDecompose(multiplyTransformMatrices(vpt, transformMatrix));
   },
 
   /**

@@ -22,7 +22,7 @@ class ConnectionLineHandler {
   }
 
   linkAnchors(obj, point = this.absolutePointer) {
-    let changedPoint = null;
+    let linkPoint = null;
     const extraSpace = max([obj.anchorSize / 2, 10]);
     const pointerArea = {
       x: point.x - extraSpace,
@@ -34,12 +34,12 @@ class ConnectionLineHandler {
     forEach(anchorsCoords, (item) => {
       const anchorCoords = { x: item.x, y: item.y };
       if (this.pointInRect({ x: anchorCoords.x, y: anchorCoords.y }, pointerArea)) {
-        changedPoint = anchorCoords;
+        linkPoint = anchorCoords;
         return false;
       }
     });
 
-    if (!changedPoint) {
+    if (!linkPoint) {
       if (
         this.canvas.connectType === 'changeToPoint' &&
         this.currentConnectionLine.toTarget
@@ -54,19 +54,19 @@ class ConnectionLineHandler {
       }
     }
 
-    if (changedPoint) {
+    if (linkPoint) {
       if (this.canvas.connectType === 'changeFromPoint') {
         this.currentConnectionLine.fromTarget = obj.id;
-        this.currentConnectionLine.fromPoint = changedPoint;
+        this.currentConnectionLine.fromPoint = linkPoint;
         this.currentConnectionLine.updatePoints();
       } else if (this.canvas.connectType === 'changeToPoint') {
         this.currentConnectionLine.toTarget = obj.id;
-        this.currentConnectionLine.toPoint = changedPoint;
+        this.currentConnectionLine.toPoint = linkPoint;
         this.currentConnectionLine.updatePoints();
       }
     }
 
-    return !!changedPoint;
+    return !!linkPoint;
   }
 
   /**
@@ -92,28 +92,144 @@ class ConnectionLineHandler {
     this.absolutePointer = absolutePointer;
     const connectableObjects = this.getConnectableObjects();
     forEach(connectableObjects, (item) => {
-      const aCoords = this.getObjACoords(item);
-      const isIn = this.containsPoint(this.absolutePointer, aCoords);
-      if (isIn) {
+      const detectionRectACoords = this.getDetectionRectACoords(item);
+      const isInDetectionRange = this.containsPoint(
+        this.absolutePointer,
+        detectionRectACoords
+      );
+      if (isInDetectionRange) {
         const hasLinkAnchor = this.linkAnchors(item, absolutePointer);
         if (hasLinkAnchor) {
           return false;
         }
-        // item.strokeEdge();
-        // const context = item.canvas.contextContainer;
-        // const isInPath = context.isPointInPath(
-        //   this.absolutePointer.x,
-        //   this.absolutePointer.y
-        // );
+
+        this.linkToBounding(item);
       }
     });
   }
 
-  getObjACoords(object) {
+  linkToBounding(obj) {
+    // stroke object edge to make "isPointInPath" method valid
+    obj.strokeEdge();
+    const linkPoint = this.getLinePointByPosition(this.pointer.x, this.pointer.y);
+    const { connectType } = this.canvas;
+
+    if (!linkPoint) {
+      if (connectType === 'changeToPoint' && this.currentConnectionLine.toTarget) {
+        this.currentConnectionLine.toTarget = null;
+      }
+      if (connectType === 'changeFromPoint' && this.currentConnectionLine.fromTarget) {
+        this.currentConnectionLine.fromTarget = null;
+      }
+    }
+
+    if (linkPoint) {
+      const absoluteLinkPoint = fabric.util.transformPoint(
+        linkPoint,
+        fabric.util.invertTransform(this.canvas.viewportTransform)
+      );
+      if (connectType === 'changeFromPoint') {
+        this.currentConnectionLine.fromTarget = obj.id;
+        this.currentConnectionLine.fromPoint = absoluteLinkPoint;
+        this.currentConnectionLine.updatePoints();
+      } else if (connectType === 'changeToPoint') {
+        this.currentConnectionLine.toTarget = obj.id;
+        this.currentConnectionLine.toPoint = absoluteLinkPoint;
+        this.currentConnectionLine.updatePoints();
+      }
+    }
+  }
+
+  getLinePointByPosition(x, y, extraSpace = 8) {
+    let result = null;
+    const pointAngle = this.getPointAngle(x, y, extraSpace);
+    const linkPoint = { angle: pointAngle };
+    const { contextContainer: ctx } = this.canvas;
+    for (let i = 1; i <= extraSpace; i++) {
+      linkPoint.x = x + Math.cos(pointAngle) * i;
+      linkPoint.y = y + Math.sin(pointAngle) * i;
+      if (ctx.isPointInPath(linkPoint.x, linkPoint.y)) {
+        result = linkPoint;
+        break;
+      }
+    }
+    return result;
+  }
+
+  getPointAngle(x, y, extraSpace = 8) {
+    const { contextContainer: ctx } = this.canvas;
+    const circlePoints = this.getCirclePoints(x, y, extraSpace);
+
+    // add property "inPath"
+    forEach(circlePoints, (item) => {
+      const { x, y } = item;
+      item.inPath = ctx.isPointInPath(x, y);
+    });
+
+    const allNotInPath =
+      filter(circlePoints, (item) => {
+        return item.inPath;
+      }) < 0;
+    if (allNotInPath) {
+      return null;
+    }
+
+    let startBoundaryPoint = null,
+      endBoundaryPoint = null;
+    const pointsLength = circlePoints.length;
+    forEach(circlePoints, (item, index) => {
+      if (!item.inPath) {
+        if (!startBoundaryPoint) {
+          let nextPoint = circlePoints[(index + 1 + pointsLength) % pointsLength];
+          if (nextPoint.inPath) {
+            startBoundaryPoint = nextPoint;
+          }
+        }
+
+        if (!endBoundaryPoint) {
+          let lastPoint = circlePoints[(index - 1 + pointsLength) % pointsLength];
+          if (lastPoint.inPath) {
+            endBoundaryPoint = lastPoint;
+          }
+        }
+
+        if (startBoundaryPoint && endBoundaryPoint) {
+          return false;
+        }
+      }
+    });
+
+    if (!startBoundaryPoint && !endBoundaryPoint) {
+      return null;
+    }
+    const differences =
+      ((Math.PI * 2 + endBoundaryPoint.angle - startBoundaryPoint.angle) %
+        (Math.PI * 2)) /
+      2;
+    return (startBoundaryPoint.angle + differences) % (Math.PI * 2);
+  }
+
+  getCirclePoints(x, y, extraSpace) {
+    let result = [];
+    for (let i = 0; i < 36; i++) {
+      const angle = (Math.PI / 18) * i;
+      result.push({
+        x: x + Math.cos(angle) * extraSpace,
+        y: y + Math.sin(angle) * extraSpace,
+        angle,
+      });
+    }
+    return result;
+  }
+
+  getDetectionRectACoords(object) {
+    return this.getObjACoords(object, 10);
+  }
+
+  getObjACoords(object, extraSpace = 0) {
     if (!object) {
       return null;
     }
-    const extraSpace = 10;
     let finalMatrix;
     if (object.group) {
       finalMatrix = object.calcTransformMatrix();
