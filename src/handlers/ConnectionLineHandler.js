@@ -1,5 +1,6 @@
 import { fabric } from 'fabric';
-import { filter, forEach, includes, max } from 'lodash';
+import { filter, forEach, includes, isEqual, max } from 'lodash';
+import memoizeOne from 'memoize-one';
 
 import { CAN_NOT_CONNECTABLE_OBJECTS } from './constants';
 
@@ -10,6 +11,7 @@ class ConnectionLineHandler {
     this.currentConnectionLine = null;
     this.pointer = null;
     this.absolutePointer = null;
+    this.observeCanvasRender();
   }
 
   getConnectableObjects() {
@@ -65,6 +67,18 @@ class ConnectionLineHandler {
     }
 
     return !!changedPoint;
+  }
+
+  /**
+   * Get point invert viewport
+   * @param {Array} vpt viewport
+   * @param {Object} point Point
+   * @return {fabric.Point}
+   */
+  getPointInvertVpt(vpt, point) {
+    return memoizeOne(function (vpt, point) {
+      return fabric.util.transformPoint(point, fabric.util.invertTransform(vpt));
+    }, isEqual)(vpt, point);
   }
 
   /**
@@ -213,6 +227,36 @@ class ConnectionLineHandler {
       }
     }
     return xcount;
+  }
+
+  observeCanvasRender() {
+    this.canvas.on('after:render', ({ ctx }) => {
+      // TODO 有些渲染上的问题，暂时先注释掉
+      // this.drawHighlightPoint(ctx);
+    });
+  }
+
+  drawHighlightPoint(ctx) {
+    if (this.currentConnectionLine && this.canvas.isConnecting) {
+      const { fromPoint, toPoint, fromTarget, toTarget } = this.currentConnectionLine;
+      const { connectType, viewportTransform } = this.canvas;
+      let aa;
+      if (connectType === 'changeFromPoint' && fromTarget) {
+        aa = fromPoint;
+      } else if (connectType === 'changeToPoint' && toTarget) {
+        aa = toPoint;
+      }
+      if (!aa) {
+        return;
+      }
+      const temp = this.getPointInvertVpt(viewportTransform, aa);
+      ctx.save();
+      ctx.beginPath();
+      ctx.fillStyle = 'rgba(194,48,48, 0.5)';
+      ctx.arc(temp.x, temp.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
   }
 }
 
