@@ -1,5 +1,6 @@
 export const ObjectType = {
   ConnectionLine: 'ConnectionLine',
+  grid: 'grid',
 };
 
 export const ICON_TYPE = {

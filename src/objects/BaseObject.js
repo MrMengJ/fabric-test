@@ -1,5 +1,5 @@
 import { fabric } from 'fabric';
-import { forEach, isEmpty } from 'lodash';
+import { forEach, isEmpty, mapValues } from 'lodash';
 
 import { DIRECTION } from '../constants/shapes';
 
@@ -407,6 +407,29 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
       translateX: transformMatrix[4] * zoom,
       translateY: transformMatrix[5] * zoom,
     };
+  },
+
+  /**
+   * Get anchor coords
+   * @return {Object}
+   */
+  getAnchorsCoords: function () {
+    return this.anchorCoords ? this.anchorCoords : this._calcAnchorCoords();
+  },
+
+  /**
+   * Get absolute anchor coords
+   * @return {Object}
+   */
+  getAbsoluteAnchorsCoords: function () {
+    const anchorsCoords = this.getAnchorsCoords();
+    const vpt = this.getViewportTransform();
+    const transformPoint = fabric.util.transformPoint;
+    const invertTransform = fabric.util.invertTransform;
+    return mapValues(anchorsCoords, (item) => {
+      const { x, y } = item;
+      return transformPoint({ x, y }, invertTransform(vpt));
+    });
   },
 
   /**

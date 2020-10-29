@@ -1,4 +1,5 @@
 import { Grid } from '../shapes/Grid';
+import {ObjectType} from "../objects/constants";
 
 class GridHandler {
   grid = null;
@@ -28,7 +29,7 @@ class GridHandler {
         top: this.top,
       });
       this.grid.set({
-        type: 'grid',
+        type: ObjectType.grid,
       });
       this.handler.canvas.add(this.grid);
     }

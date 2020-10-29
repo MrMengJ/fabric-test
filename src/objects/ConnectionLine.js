@@ -181,6 +181,18 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   toPoint: null,
 
   /**
+   * from element id
+   * @type String
+   */
+  fromTarget: null,
+
+  /**
+   * to element id
+   * @type String
+   */
+  toTarget: null,
+
+  /**
    * Object connection anchors
    * @type Array
    * @default
@@ -784,6 +796,15 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       draggingTextBox
     );
     this.canvas._isDraggingConnectionLine = true;
+    if (isDragStartPort || isDragEndPort) {
+      this.canvas.isConnecting = true;
+      if (isDragStartPort) {
+        this.canvas.connectType = 'changeFromPoint';
+      }
+      if (isDragEndPort) {
+        this.canvas.connectType = 'changeToPoint';
+      }
+    }
   },
 
   /**
@@ -1017,21 +1038,25 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       const point = this.getPointInvertVpt(this.getViewportTransform(), pointer);
 
       if (this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort) {
-        this.fromPoint = point;
-        this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
-        this._updatePoints();
-        this._needRecalculatePoints = false;
-        this._updateSize(this.points);
-        this._updatePosition(this.points);
+        if (!this.fromTarget) {
+          this.fromPoint = point;
+          this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
+          this.updatePoints();
+          this._needRecalculatePoints = false;
+          this._updateSize(this.points);
+          this._updatePosition(this.points);
+        }
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort
       ) {
-        this.toPoint = point;
-        this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
-        this._updatePoints();
-        this._needRecalculatePoints = false;
-        this._updateSize(this.points);
-        this._updatePosition(this.points);
+        if (!this.toTarget) {
+          this.toPoint = point;
+          this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
+          this.updatePoints();
+          this._needRecalculatePoints = false;
+          this._updateSize(this.points);
+          this._updatePosition(this.points);
+        }
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint
       ) {
@@ -1353,6 +1378,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   _endDragging: function () {
     this._isDragging = false;
     this.canvas._isDraggingConnectionLine = false;
+    this.canvas.isConnecting = false;
     this._draggingObject = null;
     this._startDraggingPoint = null;
   },
@@ -1579,7 +1605,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * Update points
    * @private
    */
-  _updatePoints: function () {
+  updatePoints: function () {
     this.points = this._createManhattanRoute(
       this.fromPoint,
       this.fromDirection,
@@ -1800,6 +1826,14 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
   getPointInvertVpt: memoizeOne(function (vpt, point) {
     return fabric.util.transformPoint(point, fabric.util.invertTransform(vpt));
   }, isEqual),
+
+  /**
+   * Get whether is dragging
+   * @return {Boolean}
+   */
+  getIsDragging: function () {
+    return this._isDragging;
+  },
 
   // For text
 

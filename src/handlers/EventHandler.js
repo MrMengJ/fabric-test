@@ -1,8 +1,11 @@
 import { fabric } from 'fabric';
+import { get } from 'lodash';
+
 import { canvasContextMenu } from '../CanvasContextMenu';
 import { updateMiniMap, updateMiniMapVP } from '../helper/utils';
 import { KEY_CODES, TRANSACTION_TYPE } from '../constants/event';
 import { MENU_ITEM_NAME } from '../CanvasContextMenu/constants';
+import { ObjectType } from '../objects/constants';
 
 class EventHandler {
   constructor(handler) {
@@ -129,13 +132,25 @@ class EventHandler {
     this.handler.canvas.renderAll();
   };
 
-  mousemove = (event) => {
+  mousemove = (options) => {
+    const { target } = options;
     if (this.handler.interactionMode === 'grab' && this.panning) {
-      this.handler.interactionHandler.moving(event.e);
+      this.handler.interactionHandler.moving(options.e);
       this.handler.canvas.requestRenderAll();
       updateMiniMapVP(this.handler.canvas, this.handler.miniMap);
-      this.lastPosX = event.e.clientX;
-      this.lastPosY = event.e.clientY;
+      this.lastPosX = options.e.clientX;
+      this.lastPosY = options.e.clientY;
+    }
+
+    // connection line handler
+    // TODO condition need alter
+    if (
+      // this.handler.canvas.connectionMode ||
+      get(target, 'type') === ObjectType.ConnectionLine &&
+      this.handler.canvas.isConnecting
+    ) {
+      const { connectionLineHandler } = this.handler;
+      connectionLineHandler.onMouseMove(options);
     }
   };
 

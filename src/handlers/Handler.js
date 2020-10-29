@@ -10,6 +10,7 @@ import GridHandler from './GridHandler';
 import InteractionHandler from './InteractionHandler';
 import ZoomHandler from './ZoomHandler';
 import TransactionHandler from './TransactionHandler';
+import ConnectionLineHandler from "./ConnectionLineHandler";
 
 class Handler {
   guidelineOption = GuidelineOption;
@@ -40,6 +41,7 @@ class Handler {
     this.interactionHandler = new InteractionHandler(this);
     this.zoomHandler = new ZoomHandler(this);
     this.transactionHandler = new TransactionHandler(this);
+    this.connectionLineHandler = new ConnectionLineHandler(this);
   };
 
   copy = () => {
