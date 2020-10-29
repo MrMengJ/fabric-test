@@ -4477,36 +4477,12 @@ const Text = fabric.util.createClass(BaseObject, {
   //  custom added
 
   /**
-   * Get current transform
-   */
-  _getCurrentTransform: function () {
-    const zoom = this.canvas.getZoom();
-    const transformMatrix = this.calcTransformMatrix();
-    return {
-      scaleX: transformMatrix[0] * zoom,
-      skewX: transformMatrix[1] * zoom,
-      skewY: transformMatrix[2] * zoom,
-      scaleY: transformMatrix[3] * zoom,
-      translateX: transformMatrix[4] * zoom,
-      translateY: transformMatrix[5] * zoom,
-    };
-  },
-
-  /**
    * set ctx to avoid text scale
    * @param ctx
    */
   _resetCtxScaleForTextRender: function (ctx) {
-    const transform = this._getCurrentTransform();
-    const zoom = this.canvas.getZoom();
-    const radians = degreesToRadians(this._getActualAngle());
-    const scaleX = this.objectCaching
-      ? transform.scaleX
-      : transform.scaleX / Math.cos(radians);
-    const scaleY = this.objectCaching
-      ? transform.scaleY
-      : transform.scaleY / Math.cos(radians);
-    ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
+    const { scaleX, scaleY } = this.getObjectScaling();
+    ctx.scale(1 / scaleX, 1 / scaleY);
   },
 
   /**

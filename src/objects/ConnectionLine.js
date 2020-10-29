@@ -1051,7 +1051,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       ) {
         if (!this.toTarget) {
           this.toPoint = point;
-          this.toDirection = this._getDirection(this.fromPoint, this.fromDirection, point);
+          this.toDirection = this._getDirection(
+            this.fromPoint,
+            this.fromDirection,
+            point
+          );
           this.updatePoints();
           this._needRecalculatePoints = false;
           this._updateSize(this.points);
@@ -2676,20 +2680,11 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       return;
     }
     const textPosition = this._getTextCoords(points);
-    const transform = this._getCurrentTransform();
-    const zoom = this.canvas.getZoom();
-    const degreesToRadians = fabric.util.degreesToRadians;
-    const radians = degreesToRadians(this._getActualAngle());
-    const scaleX = this.objectCaching
-      ? transform.scaleX
-      : transform.scaleX / Math.cos(radians);
-    const scaleY = this.objectCaching
-      ? transform.scaleY
-      : transform.scaleY / Math.cos(radians);
+    const { scaleX, scaleY } = this.getObjectScaling();
 
     ctx.save();
     ctx.translate(textPosition.x, textPosition.y);
-    ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
+    ctx.scale(1 / scaleX, 1 / scaleY);
 
     if (this.paintFirst === 'stroke') {
       this._renderTextStroke(ctx);
@@ -2709,19 +2704,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     ctx.save();
     ctx.fillStyle = this.textStyle.backgroundColor;
     const textPosition = this._getTextCoords(points);
-    const transform = this._getCurrentTransform();
-    const zoom = this.canvas.getZoom();
-    const degreesToRadians = fabric.util.degreesToRadians;
-    const radians = degreesToRadians(this._getActualAngle());
-    const scaleX = this.objectCaching
-      ? transform.scaleX
-      : transform.scaleX / Math.cos(radians);
-    const scaleY = this.objectCaching
-      ? transform.scaleY
-      : transform.scaleY / Math.cos(radians);
-
+    const { scaleX, scaleY } = this.getObjectScaling();
     ctx.translate(textPosition.x, textPosition.y);
-    ctx.scale((1 / scaleX) * zoom, (1 / scaleY) * zoom);
+    ctx.scale(1 / scaleX, 1 / scaleY);
 
     ctx.fillRect(
       -this.textBoxWidth / 2,

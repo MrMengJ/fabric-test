@@ -448,22 +448,6 @@ const BaseObject = fabric.util.createClass(fabric.Object, {
     this._strokeEdge(ctx);
     ctx.restore();
   },
-
-  /**
-   * Get current transform
-   */
-  _getCurrentTransform: function () {
-    const zoom = this.canvas.getZoom();
-    const transformMatrix = this.calcTransformMatrix();
-    return {
-      scaleX: transformMatrix[0] * zoom,
-      skewX: transformMatrix[1] * zoom,
-      skewY: transformMatrix[2] * zoom,
-      scaleY: transformMatrix[3] * zoom,
-      translateX: transformMatrix[4] * zoom,
-      translateY: transformMatrix[5] * zoom,
-    };
-  },
 });
 
 export default BaseObject;
