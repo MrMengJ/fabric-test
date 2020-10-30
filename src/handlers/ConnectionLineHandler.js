@@ -42,25 +42,25 @@ class ConnectionLineHandler {
     if (!linkPoint) {
       if (
         this.canvas.connectType === 'changeToPoint' &&
-        this.currentConnectionLine.toTarget
+        this.currentConnectionLine.toTargetId
       ) {
-        this.currentConnectionLine.toTarget = null;
+        this.currentConnectionLine.toTargetId = null;
       }
       if (
         this.canvas.connectType === 'changeFromPoint' &&
-        this.currentConnectionLine.fromTarget
+        this.currentConnectionLine.fromTargetId
       ) {
-        this.currentConnectionLine.fromTarget = null;
+        this.currentConnectionLine.fromTargetId = null;
       }
     }
 
     if (linkPoint) {
       if (this.canvas.connectType === 'changeFromPoint') {
-        this.currentConnectionLine.fromTarget = obj.id;
+        this.currentConnectionLine.fromTargetId = obj.id;
         this.currentConnectionLine.fromPoint = linkPoint;
         this.currentConnectionLine.updatePoints();
       } else if (this.canvas.connectType === 'changeToPoint') {
-        this.currentConnectionLine.toTarget = obj.id;
+        this.currentConnectionLine.toTargetId = obj.id;
         this.currentConnectionLine.toPoint = linkPoint;
         this.currentConnectionLine.updatePoints();
       }
@@ -115,11 +115,11 @@ class ConnectionLineHandler {
     const { connectType } = this.canvas;
 
     if (!linkPoint) {
-      if (connectType === 'changeToPoint' && this.currentConnectionLine.toTarget) {
-        this.currentConnectionLine.toTarget = null;
+      if (connectType === 'changeToPoint' && this.currentConnectionLine.toTargetId) {
+        this.currentConnectionLine.toTargetId = null;
       }
-      if (connectType === 'changeFromPoint' && this.currentConnectionLine.fromTarget) {
-        this.currentConnectionLine.fromTarget = null;
+      if (connectType === 'changeFromPoint' && this.currentConnectionLine.fromTargetId) {
+        this.currentConnectionLine.fromTargetId = null;
       }
     }
 
@@ -129,11 +129,11 @@ class ConnectionLineHandler {
         fabric.util.invertTransform(this.canvas.viewportTransform)
       );
       if (connectType === 'changeFromPoint') {
-        this.currentConnectionLine.fromTarget = obj.id;
+        this.currentConnectionLine.fromTargetId = obj.id;
         this.currentConnectionLine.fromPoint = absoluteLinkPoint;
         this.currentConnectionLine.updatePoints();
       } else if (connectType === 'changeToPoint') {
-        this.currentConnectionLine.toTarget = obj.id;
+        this.currentConnectionLine.toTargetId = obj.id;
         this.currentConnectionLine.toPoint = absoluteLinkPoint;
         this.currentConnectionLine.updatePoints();
       }
@@ -354,12 +354,12 @@ class ConnectionLineHandler {
 
   drawHighlightPoint(ctx) {
     if (this.currentConnectionLine && this.canvas.isConnecting) {
-      const { fromPoint, toPoint, fromTarget, toTarget } = this.currentConnectionLine;
+      const { fromPoint, toPoint, fromTargetId, toTargetId } = this.currentConnectionLine;
       const { connectType, viewportTransform } = this.canvas;
       let aa;
-      if (connectType === 'changeFromPoint' && fromTarget) {
+      if (connectType === 'changeFromPoint' && fromTargetId) {
         aa = fromPoint;
-      } else if (connectType === 'changeToPoint' && toTarget) {
+      } else if (connectType === 'changeToPoint' && toTargetId) {
         aa = toPoint;
       }
       if (!aa) {

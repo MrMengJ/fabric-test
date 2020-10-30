@@ -184,13 +184,13 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * from element id
    * @type String
    */
-  fromTarget: null,
+  fromTargetId: null,
 
   /**
    * to element id
    * @type String
    */
-  toTarget: null,
+  toTargetId: null,
 
   /**
    * Object connection anchors
@@ -1038,7 +1038,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       const point = this.getPointInvertVpt(this.getViewportTransform(), pointer);
 
       if (this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.startPort) {
-        if (!this.fromTarget) {
+        if (!this.fromTargetId) {
           this.fromPoint = point;
           this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
           this.updatePoints();
@@ -1049,7 +1049,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort
       ) {
-        if (!this.toTarget) {
+        if (!this.toTargetId) {
           this.toPoint = point;
           this.toDirection = this._getDirection(
             this.fromPoint,
