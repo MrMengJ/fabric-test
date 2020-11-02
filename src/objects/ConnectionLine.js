@@ -258,9 +258,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
     this.initDimensions();
 
     this._initPoints();
-    this._updateSize(this.points);
-    this._updatePosition(this.points);
-    this._updateDirection();
+    this.updateSize(this.points);
+    this.updatePosition(this.points);
+    this.updateDirection();
     this.initBehavior();
   },
 
@@ -530,7 +530,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {Array} points
    * @private
    */
-  _updateSize: function (points) {
+  updateSize: function (points = this.points) {
     if (isEmpty(points)) {
       return;
     }
@@ -548,7 +548,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * @param {Array} points
    * @private
    */
-  _updatePosition: function (points) {
+  updatePosition: function (points = this.points) {
     if (isEmpty(points)) {
       return;
     }
@@ -562,7 +562,7 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
    * initialize direction
    * @private
    */
-  _updateDirection: function () {
+  updateDirection: function () {
     if (this.points.length <= 1) {
       return;
     }
@@ -967,9 +967,9 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
         this._needRecalculatePoints = false;
       }
     }
-    this._updateDirection();
-    this._updateSize(this.points);
-    this._updatePosition(this.points);
+    this.updateDirection();
+    this.updateSize(this.points);
+    this.updatePosition(this.points);
     this.canvas.requestRenderAll();
   },
 
@@ -1043,8 +1043,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
           this.fromDirection = this._getDirection(this.toPoint, this.toDirection, point);
           this.updatePoints();
           this._needRecalculatePoints = false;
-          this._updateSize(this.points);
-          this._updatePosition(this.points);
+          this.updateSize(this.points);
+          this.updatePosition(this.points);
         }
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.endPort
@@ -1058,8 +1058,8 @@ const ConnectionLine = fabric.util.createClass(BaseObject, {
           );
           this.updatePoints();
           this._needRecalculatePoints = false;
-          this._updateSize(this.points);
-          this._updatePosition(this.points);
+          this.updateSize(this.points);
+          this.updatePosition(this.points);
         }
       } else if (
         this._draggingObject.type === CONNECTION_LINE_DRAGGING_OBJECT_TYPE.controlPoint

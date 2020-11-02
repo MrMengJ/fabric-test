@@ -21,6 +21,13 @@ class ConnectionLineHandler {
     });
   }
 
+  updateConnectionLine() {
+    this.currentConnectionLine.updatePoints();
+    this.currentConnectionLine.updateSize();
+    this.currentConnectionLine.updatePosition();
+    this.currentConnectionLine.updateDirection();
+  }
+
   linkAnchors(obj, point = this.absolutePointer) {
     let linkPoint = null;
     const extraSpace = max([obj.anchorSize / 2, 10]);
@@ -38,6 +45,17 @@ class ConnectionLineHandler {
         return false;
       }
     });
+
+    // if point is in range,return
+    const isInRange =
+      linkPoint &&
+      ((this.canvas.connectType === 'changeToPoint' &&
+        this.currentConnectionLine.toTargetId) ||
+        (this.canvas.connectType === 'changeFromPoint' &&
+          this.currentConnectionLine.fromTargetId));
+    if (isInRange) {
+      return;
+    }
 
     if (!linkPoint) {
       if (
@@ -58,11 +76,11 @@ class ConnectionLineHandler {
       if (this.canvas.connectType === 'changeFromPoint') {
         this.currentConnectionLine.fromTargetId = obj.id;
         this.currentConnectionLine.fromPoint = linkPoint;
-        this.currentConnectionLine.updatePoints();
+        this.updateConnectionLine();
       } else if (this.canvas.connectType === 'changeToPoint') {
         this.currentConnectionLine.toTargetId = obj.id;
         this.currentConnectionLine.toPoint = linkPoint;
-        this.currentConnectionLine.updatePoints();
+        this.updateConnectionLine();
       }
     }
 
@@ -114,6 +132,17 @@ class ConnectionLineHandler {
     const linkPoint = this.getLinePointByPosition(this.pointer.x, this.pointer.y);
     const { connectType } = this.canvas;
 
+    // if point is in range,return
+    const isInRange =
+      linkPoint &&
+      ((this.canvas.connectType === 'changeToPoint' &&
+        this.currentConnectionLine.toTargetId) ||
+        (this.canvas.connectType === 'changeFromPoint' &&
+          this.currentConnectionLine.fromTargetId));
+    if (isInRange) {
+      return;
+    }
+
     if (!linkPoint) {
       if (connectType === 'changeToPoint' && this.currentConnectionLine.toTargetId) {
         this.currentConnectionLine.toTargetId = null;
@@ -131,11 +160,11 @@ class ConnectionLineHandler {
       if (connectType === 'changeFromPoint') {
         this.currentConnectionLine.fromTargetId = obj.id;
         this.currentConnectionLine.fromPoint = absoluteLinkPoint;
-        this.currentConnectionLine.updatePoints();
+        this.updateConnectionLine();
       } else if (connectType === 'changeToPoint') {
         this.currentConnectionLine.toTargetId = obj.id;
         this.currentConnectionLine.toPoint = absoluteLinkPoint;
-        this.currentConnectionLine.updatePoints();
+        this.updateConnectionLine();
       }
     }
   }
