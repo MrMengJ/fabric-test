@@ -1,7 +1,7 @@
 import { fabric } from 'fabric';
 
 import { DIRECTION } from '../constants/shapes';
-import Text from "../objects/Text";
+import Text from '../objects/Text';
 
 export const Role = fabric.util.createClass(Text, {
   isEditingText: false,
@@ -19,8 +19,22 @@ export const Role = fabric.util.createClass(Text, {
   direction: DIRECTION.BOTTOM,
   startColor: '#fcff7b',
   endColor: '#ffffc6',
-  text:"角色",
-  type:'Role',
+  text: '角色',
+  type: 'Role',
+  _strokeEdge: function (ctx) {
+    let w = this.width,
+      h = this.height,
+      x = -this.width / 2,
+      y = -this.height / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x, y);
+    ctx.closePath();
+  },
   _render: function (ctx) {
     let w = this.width,
       h = this.height,

@@ -22,7 +22,16 @@ export const KeyCompliancePoint = fabric.util.createClass(Text, {
   startColor: '#fff',
   endColor: '#fff',
   text: 'KCP',
-  type:'KeyCompliancePoint',
+  type: 'KeyCompliancePoint',
+  _strokeEdge: function (ctx) {
+    let x = this.x,
+      y = this.y,
+      rx = this.radiusX,
+      ry = this.radiusY;
+    ctx.beginPath();
+    ctx.setLineDash([5, 5]);
+    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  },
   _render: function (ctx) {
     let x = this.x,
       y = this.y,
@@ -32,7 +41,6 @@ export const KeyCompliancePoint = fabric.util.createClass(Text, {
     ctx.beginPath();
     ctx.setLineDash([5, 5]);
     ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-    ctx.stroke();
     ctx.closePath();
 
     this._renderPaintInOrder(ctx);

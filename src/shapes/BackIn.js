@@ -20,7 +20,22 @@ export const BackIn = fabric.util.createClass(Text, {
   startColor: '#9aff9a',
   endColor: '#9aff9a',
   text: '',
-  type:'BackIn',
+  type: 'BackIn',
+  _strokeEdge: function (ctx) {
+    let w = this.width,
+      h = this.height,
+      x = -this.width / 2,
+      y = -this.height / 2;
+    ctx.beginPath();
+    ctx.moveTo(x + w / 2, y + h);
+
+    ctx.lineTo(x + w / 2, y + h / 2);
+
+    ctx.lineTo(x, y);
+
+    ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w / 2, y + h / 2);
+  },
   _render: function (ctx) {
     let w = this.width,
       h = this.height,

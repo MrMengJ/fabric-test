@@ -21,10 +21,14 @@ export const From = fabric.util.createClass(Text, {
   endColor: '#71afff',
   text: 'From',
   type: 'From',
+  _strokeEdge: function (ctx) {
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+    ctx.closePath();
+  },
   _render: function (ctx) {
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-    ctx.stroke();
     ctx.closePath();
 
     this._renderPaintInOrder(ctx);

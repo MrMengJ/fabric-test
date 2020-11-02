@@ -20,7 +20,24 @@ export const Event = fabric.util.createClass(Text, {
   startColor: '#ffd7ff',
   endColor: '#ffd7ff',
   text: '',
-  type:'Event',
+  type: 'Event',
+  _strokeEdge: function (ctx) {
+    let w = this.width,
+      h = this.height,
+      x = -this.width / 2,
+      y = -this.height / 2;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y + h / 2);
+
+    ctx.lineTo(x + w * 0.2, y);
+    ctx.lineTo(x + w * 0.8, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x + w * 0.8, y + h);
+    ctx.lineTo(x + w * 0.2, y + h);
+    ctx.lineTo(x, y + h / 2);
+    ctx.closePath();
+  },
   _render: function (ctx) {
     let w = this.width,
       h = this.height,
