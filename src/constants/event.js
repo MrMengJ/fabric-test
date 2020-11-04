@@ -61,6 +61,16 @@ export const propertiesToInclude = [
   'verticalAlign',
   'width',
   'height',
+  'points',
+  'arrowType',
+  'fromPoint',
+  'toPoint',
+  'fromDirection',
+  'toDirection',
+  'text',
+  'hasControls',
+  'hasBorders',
+  'textStyle',
 ];
 
 export const isLeftMouseClick = (event) => {
