@@ -49,6 +49,9 @@ export const updateMiniMap = (canvas, miniMap) => {
 };
 
 export const updateMiniMapVP = (canvas, miniMap) => {
+  if (!canvas || !miniMap) {
+    return;
+  }
   let canvasSize = { width: canvas.width, height: canvas.height };
   let rect = miniMap.getObjects()[0];
   let canvasRatio = fabric.util.findScaleToFit(canvasSize, canvas);

@@ -28,10 +28,12 @@ class EventHandler {
         'object:removed': this.removed,
       });
     }
-    this.handler.miniMap.on({
-      'object:moving': this.miniMapMoving,
-      'object:scaling': this.miniMapScaling,
-    });
+    if (this.handler.miniMap) {
+      this.handler.miniMap.on({
+        'object:moving': this.miniMapMoving,
+        'object:scaling': this.miniMapScaling,
+      });
+    }
     //this.handler.canvas.wrapperEl.tabIndex = 1000;
     document.addEventListener('keydown', this.keydown, false);
     document.addEventListener('keyup', this.keyup, false);
