@@ -1,5 +1,5 @@
 import { Grid } from '../shapes/Grid';
-import {ObjectType} from "../objects/constants";
+import { ObjectType } from '../objects/constants';
 
 class GridHandler {
   grid = null;

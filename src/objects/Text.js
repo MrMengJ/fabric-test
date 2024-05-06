@@ -571,6 +571,7 @@ const Text = fabric.util.createClass(BaseObject, {
    */
   _render: function (ctx) {
     this.callSuper('_render', ctx);
+    ctx.beginPath();
     // initDimensions
     this.initDimensions();
 

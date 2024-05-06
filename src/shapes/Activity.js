@@ -3,12 +3,6 @@ import { DIRECTION } from '../constants/shapes';
 import IconText from '../objects/IconText';
 
 export const Activity = fabric.util.createClass(IconText, {
-  isEditingText: false,
-  scalePercent: 1,
-  thumbnail: false,
-  readonly: false,
-  hasText: true,
-  minimal: false,
   width: 100,
   height: 60,
   x: 0,

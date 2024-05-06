@@ -15,6 +15,7 @@ export const CooperatingGroup = fabric.util.createClass(Text, {
     y: 0,
     fill: '#fff',
     stroke: '#000',
+    strokeDashArray:[],
     text:"协作框",
     type:'CooperatingGroup',
     _render: function (ctx) {

@@ -5,7 +5,7 @@ export const GuidelineOption = {
    * When have moved object, whether should show guideline
    * @type {boolean}
    */
-  enabled: false,
+  enabled: true,
 };
 
 export const GridOption = {
@@ -44,6 +44,9 @@ export const createCanvasEl = (canvas, miniMap) => {
 };
 
 export const updateMiniMap = (canvas, miniMap) => {
+  if (!canvas || !miniMap) {
+    return;
+  }
   miniMap.backgroundImage._element = createCanvasEl(canvas, miniMap);
   miniMap.requestRenderAll();
 };
@@ -86,7 +89,7 @@ export const initMiniMap = (canvas, miniMap) => {
     cornerSize: 6,
     transparentCorners: false,
     cornerColor: 'blue',
-    strokeWidth: 0
+    strokeWidth: 0,
   });
 
   /*    const handleScaling = (event,transform,x,y) => {
@@ -103,7 +106,7 @@ export const initMiniMap = (canvas, miniMap) => {
         actionHandler: handleScaling,
     });*/
   minimapView.controls = {
-    br: fabric.Object.prototype.controls.br
+    br: fabric.Object.prototype.controls.br,
   };
 
   miniMap.add(minimapView);

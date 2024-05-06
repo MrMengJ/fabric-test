@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import styled from 'styled-components';
+import { Button } from '@blueprintjs/core';
+import { fabric } from 'fabric';
 
 import Canvas from '../../objects/Canvas';
 import { DIRECTION } from '../../constants/shapes';
@@ -19,6 +21,9 @@ import { END } from '../../shapes/END';
 import { BackOut } from '../../shapes/BackOut';
 import { Handler } from '../../handlers';
 import { initMiniMap } from '../../helper/utils';
+import ConnectionLine from '../../objects/ConnectionLine';
+import { CooperatingGroup } from '../../shapes/CooperatingGroup';
+import { KeyCompliancePoint2 } from '../../shapes/KeyCompliancePoint2';
 
 const StyledCanvas = styled.canvas`
   border: 1px solid red;
@@ -53,8 +58,8 @@ function Demo9() {
     if (canvasEl.current) {
       const canvasOptions = {
         backgroundColor: '#f3f3f3',
-        width: 3000,
-        height: 800,
+        width: 1500,
+        height: 700,
         // selectionFullyContained:false
       };
 
@@ -72,6 +77,21 @@ function Demo9() {
         canvas: canvas,
         miniMap: miniMap,
       });
+
+      // end = new END({
+      //   gradient: true,
+      //   width: 100,
+      //   height: 60,
+      //   rx: 8,
+      //   ry: 8,
+      //   fill: '#fff',
+      //   stroke: '#000',
+      //   direction: DIRECTION.BOTTOM,
+      //   startColor: '#71afff',
+      //   endColor: '#bddaff',
+      //   left: 100,
+      //   top: 100,
+      // });
 
       activity = new Activity({
         gradient: true,
@@ -127,7 +147,7 @@ function Demo9() {
         top: 100,
         textAlign: 'center',
         verticalAlign: 'middle',
-        text: '虚拟角色',
+        text: '虚拟aaaaaaaaaaa角色',
       });
       from = new From({
         isEditingText: false,
@@ -166,7 +186,7 @@ function Demo9() {
       });
       customer = new Customer({
         isEditingText: false,
-        gradient: true,
+        // gradient: true,
         scalePercent: 1,
         thumbnail: false,
         readonly: false,
@@ -185,6 +205,23 @@ function Demo9() {
         verticalAlign: 'middle',
         text: '客户',
       });
+      customer.set(
+        'fill',
+        new fabric.Gradient({
+          coords: {
+            x1: -50,
+            y1: 0,
+            x2: 50,
+            y2: 50,
+          },
+          colorStops: [
+            { offset: 0, color: 'blue', opacity: 1 },
+            { offset: 0.5, color: 'red', opacity: 0.5 },
+            { offset: 1, color: 'rgba(0, 255, 0, 0.8)' },
+          ],
+        })
+      );
+
       backIn = new BackIn({
         isEditingText: false,
         gradient: true,
@@ -228,7 +265,7 @@ function Demo9() {
       });
       dataStore = new DataStore({
         isEditingText: false,
-        gradient: true,
+        // gradient: true,
         scalePercent: 1,
         thumbnail: false,
         readonly: false,
@@ -246,6 +283,13 @@ function Demo9() {
         textAlign: 'center',
         verticalAlign: 'middle',
         text: '信息系统',
+        shadow: {
+          color: 'black',
+          blur: 5,
+          offsetX: 10,
+          offsetY: 10,
+          opacity: 0.5,
+        },
       });
       processInterface = new ProcessInterface({
         isEditingText: false,
@@ -282,6 +326,18 @@ function Demo9() {
         verticalAlign: 'middle',
         text: 'KCP',
       });
+      let kcp2 = new KeyCompliancePoint2({
+        width: 100,
+        height: 60,
+        stroke: '#ff1010',
+        strokeDashArray: [5, 5],
+        left: 700,
+        top: 280,
+        textAlign: 'center',
+        verticalAlign: 'middle',
+        text: 'KCQ',
+      });
+      canvas.add(kcp2);
       _document = new Document({
         isEditingText: false,
         gradient: false,
@@ -340,6 +396,40 @@ function Demo9() {
         verticalAlign: 'middle',
       });
 
+      let Ellipse = new fabric.Ellipse({
+        width: 50,
+        height: 30,
+        rx: 25,
+        ry: 15,
+        fill: null,
+        stroke: '#000',
+        strokeDashArray: [5, 5],
+        left: 1250,
+        top: 200,
+        textAlign: 'center',
+        verticalAlign: 'middle',
+      });
+      canvas.add(Ellipse);
+
+      // const connectionLine = new ConnectionLine({
+      //     // points: [
+      //     //   { x: 10, y: 10 },
+      //     //   { x: 10, y: 130 },
+      //     //   { x: 140, y: 130 },
+      //     //   { x: 140, y: 250 },
+      //     //   { x: 240, y: 250 },
+      //     //   { x: 240, y: 300 },
+      //     //   { x: 300, y: 300 },
+      //     // ],
+      //     // stroke: '#e98516',
+      //     // arrowType: 'double-sided',
+      //     fromPoint: { x: 30, y: 30 },
+      //     toPoint: { x: 300, y: 300 },
+      //     fromDirection: 'left',
+      //     toDirection: 'right',
+      //     text: '大连飞机了的萨鲁法尔\n1232149080\njlj大连飞机',
+      // });
+
       canvas.add(activity);
       canvas.add(role);
       canvas.add(virtualRole);
@@ -354,6 +444,7 @@ function Demo9() {
       canvas.add(_document);
       canvas.add(end);
       canvas.add(backOut);
+      // canvas.add(connectionLine);
       initMiniMap(canvas, miniMap);
 
       miniMap.renderAll();
@@ -361,10 +452,30 @@ function Demo9() {
     }
   }, []);
 
+  const getImgData = () => {
+    console.log('zoom', canvas.getZoom());
+    const data = canvas.toDataURL('image/jpeg', 0.5);
+    console.log('data', data);
+    if (data) {
+      const equalIndex = data.indexOf('=');
+      if (equalIndex > 0) {
+        const str = data.substring(0, equalIndex);
+        const strLength = str.length;
+        const fileLength = strLength - (strLength / 8) * 2;
+        console.log('fileLength', fileLength / 1024.0);
+      } else {
+        const strLength = data.length;
+        const fileLength = strLength - (strLength / 8) * 2;
+        console.log('fileLength', fileLength / 1024.0);
+      }
+    }
+  };
+
   return (
     <>
       <StyledCanvas ref={canvasEl} id={'canvas'} />
       <StyledMiniMap ref={miniMapEl} id={'miniMap'} />
+      <Button onClick={getImgData}>转换</Button>
     </>
   );
 }
